@@ -39,4 +39,4 @@ Upon successful execution, a `current_project` directory will be created contain
 
 ### Verification
 
-The structure of the generated `working_cartridge.zip` (which is an `.imscc` file) can be verified by uploading it to the Common Cartridge Viewer. The viewer confirms that the script creates the expected module and content structure.
+The structure of the generated `working_cartridge.zip` (which is an `.imscc` file) can be verified by uploading it to the Common Cartridge Viewer (https://common-cartridge-viewer.netlify.app/#/). The viewer confirms that the script creates the expected module and content structure.
