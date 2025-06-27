@@ -2,6 +2,8 @@
 
 This Python script (`generator.py`) is a Proof of Concept (PoC) for generating IMS Common Cartridge (`.imscc`) files.
 
+<img src="https://raw.githubusercontent.com/RetributionByRevenue/Common_Cartridge_Generator_POC/refs/heads/main/Result.PNG" width=380 height=400>
+
 ### What it Does
 
 The script automates the creation of a basic Common Cartridge structure, including:
