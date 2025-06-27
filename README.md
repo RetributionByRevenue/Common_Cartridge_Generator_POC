@@ -13,7 +13,7 @@ The script automates the creation of a basic Common Cartridge structure, includi
 
 The script can generate modules containing the following items:
 
-| Content Type |
+| Modules |
 | :----------- |
 | Wiki Pages   |
 | Assignments  |
