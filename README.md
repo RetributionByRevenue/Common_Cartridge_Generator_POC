@@ -3,47 +3,68 @@ when adding to module, have optional argument about position. this will need to 
 
 delete by id
 
-## Common Cartridge Generator (PoC)
+# Canvas Common Cartridge Generator
 
-This Python script (`generator.py`) is a Proof of Concept (PoC) for generating IMS Common Cartridge (`.imscc`) files.
+This tool generates Canvas Common Cartridge packages with various content types. The main script demonstrates the available functions by creating a sample cartridge with modules and different content types.
 
-<img src="https://raw.githubusercontent.com/RetributionByRevenue/Common_Cartridge_Generator_POC/refs/heads/main/Result.PNG" width=380 height=400>
+## Usage
 
-### What it Does
+```bash
+python cartridge_generator.py output_directory --title "Course Title" --code "COURSE_CODE"
+```
 
-The script automates the creation of a basic Common Cartridge structure, including:
-- Initializing `imsmanifest.xml` and `module_meta.xml`.
-- Adding various content types (Wiki Pages, Quizzes, Assignments, Files, Discussions) within modules.
-- Packaging the generated content and metadata into a `.imscc` (ZIP) file.
+## Functions Used in Main Script
 
-### Supported Content Types
+### Core Setup Functions
+- `create_base_cartridge()` - Creates the basic cartridge structure and core XML files
+- `add_module()` - Creates learning modules with specified titles and positions
 
-The script can generate modules containing the following items:
+### Module-Based Content Functions (Currently Active)
+These functions add content to specific modules using DataFrame-based module selection:
 
-| Modules |
-| :----------- |
-| Wiki Pages   |
-| Assignments  |
-| Quizzes      |
-| Files        |
-| Discussions  |
+- `add_wiki_page_to_module()` - Adds wiki pages to modules
+- `add_assignment_to_module()` - Adds assignments to modules  
+- `add_quiz_to_module()` - Adds quizzes to modules
+- `add_discussion_to_module()` - Adds discussion topics to modules
+- `add_file_to_module()` - Adds file attachments to modules
 
-### How to Run
+### Standalone Content Functions (Currently Commented Out)
+These functions create content not attached to any module:
 
-1.  Ensure you have Python 3 installed.
-2.  Install the `lxml` library:
-    ```bash
-    pip install lxml
-    ```
-3.  Execute the script:
-    ```bash
-    python generator.py
-    ```
+- `add_standalone_discussion()` - Creates standalone discussion topics
+- `add_file_standalone()` - Creates standalone files
+- `add_standalone_wiki_page()` - Creates standalone wiki pages
+- `add_assignment()` - Creates standalone assignments
+- `add_quiz()` - Creates standalone quizzes
+- `add_discussion_topic()` - Adds discussions to modules (legacy version)
 
-### Output
+## Current Cartridge Structure
 
-Upon successful execution, a `current_project` directory will be created containing the generated XML files and content, which is then zipped into `working_cartridge.zip` within the same directory.
+The main script currently generates:
 
-### Verification
+**Module 1 (test1):**
+- Wiki page: "test_wiki_page1"
+- Discussion: "Module 1 Discussion"  
+- File attachment: "module_file.txt"
 
-The structure of the generated `working_cartridge.zip` (which is an `.imscc` file) can be verified by uploading it to the Common Cartridge Viewer (https://common-cartridge-viewer.netlify.app/#/). The viewer confirms that the script creates the expected module and content structure.
+**Module 2 (test2):**
+- Wiki page: "test_wiki_page2"
+- Assignment: "Module 2 Assignment" (50 points)
+
+**Module 3 (test3):**
+- Wiki page: "test_wiki_page3"
+- Quiz: "Module 3 Quiz" (25 points)
+
+## Key Features
+
+- **DataFrame-based module selection**: Use `generator.df` to query and select modules by title or other attributes
+- **Automatic state management**: All functions automatically update cartridge files and scan current state
+- **Canvas-compatible**: Generates proper Canvas Common Cartridge XML structure
+- **Flexible content creation**: Support for both module-attached and standalone content
+
+## Output
+
+The script generates:
+- Complete cartridge directory structure
+- Zipped cartridge file (`generated_cartridge.zip`)
+- HTML inspection file (`table_inspect.html`) showing cartridge structure
