@@ -28,7 +28,7 @@ These functions add content to specific modules using DataFrame-based module sel
 - `add_discussion_to_module()` - Adds discussion topics to modules
 - `add_file_to_module()` - Adds file attachments to modules
 
-### Standalone Content Functions (Currently Commented Out)
+### Standalone Content Functions 
 These functions create content not attached to any module:
 
 - `add_standalone_discussion()` - Creates standalone discussion topics
@@ -36,24 +36,6 @@ These functions create content not attached to any module:
 - `add_standalone_wiki_page()` - Creates standalone wiki pages
 - `add_assignment()` - Creates standalone assignments
 - `add_quiz()` - Creates standalone quizzes
-- `add_discussion_topic()` - Adds discussions to modules (legacy version)
-
-## Current Cartridge Structure
-
-The main script currently generates:
-
-**Module 1 (test1):**
-- Wiki page: "test_wiki_page1"
-- Discussion: "Module 1 Discussion"  
-- File attachment: "module_file.txt"
-
-**Module 2 (test2):**
-- Wiki page: "test_wiki_page2"
-- Assignment: "Module 2 Assignment" (50 points)
-
-**Module 3 (test3):**
-- Wiki page: "test_wiki_page3"
-- Quiz: "Module 3 Quiz" (25 points)
 
 ## Key Features
 
