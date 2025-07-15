@@ -1,3 +1,8 @@
+<b>todo:</b><br>
+when adding to module, have optional argument about position. this will need to reorder all the items in the module's <slot>
+
+delete by id
+
 ## Common Cartridge Generator (PoC)
 
 This Python script (`generator.py`) is a Proof of Concept (PoC) for generating IMS Common Cartridge (`.imscc`) files.
