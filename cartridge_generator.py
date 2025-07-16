@@ -257,7 +257,7 @@ class CartridgeGenerator:
         
         return module_id
     
-    def add_wiki_page_to_module(self, module_id, page_title, page_content="", published=True):
+    def add_wiki_page_to_module(self, module_id, page_title, page_content="", published=True, position=None):
         """Add a wiki page to a specific module using actual module identifier from DataFrame"""
         page_id = f"g{uuid.uuid4().hex}"
         resource_id = f"g{uuid.uuid4().hex}"
@@ -296,6 +296,27 @@ class CartridgeGenerator:
             else:
                 raise ValueError(f"Module with identifier {module_id} not found")
         
+        # Determine position for new item (1-based indexing, no gaps allowed)
+        if position is None:
+            item_position = len(module['items']) + 1
+        else:
+            # Clamp position to valid range (1-based, no gaps)
+            min_position = 1
+            max_position = len(module['items']) + 1
+            item_position = max(min_position, min(position, max_position))
+            
+            # Adjust positions of existing items if inserting at specific position
+            for existing_item in module['items']:
+                if existing_item['position'] >= item_position:
+                    existing_item['position'] += 1
+            
+            # Also adjust positions in organization items
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                for org_item in org_module['items']:
+                    if org_item['position'] >= item_position:
+                        org_item['position'] += 1
+
         # Add item to module
         item = {
             'identifier': item_id,
@@ -303,7 +324,7 @@ class CartridgeGenerator:
             'content_type': 'WikiPage',
             'workflow_state': 'published' if published else 'unpublished',
             'identifierref': resource_id,
-            'position': len(module['items']) + 1
+            'position': item_position
         }
         module['items'].append(item)
         
@@ -331,7 +352,8 @@ class CartridgeGenerator:
             org_module['items'].append({
                 'identifier': item_id,
                 'title': page_title,
-                'identifierref': resource_id
+                'identifierref': resource_id,
+                'position': item_position
             })
         
         # Update cartridge state
@@ -339,7 +361,7 @@ class CartridgeGenerator:
         
         return page_id
     
-    def add_assignment_to_module(self, module_id, assignment_title, assignment_content="", points=100, published=True):
+    def add_assignment_to_module(self, module_id, assignment_title, assignment_content="", points=100, published=True, position=None):
         """Add an assignment to a specific module using actual module identifier from DataFrame"""
         assignment_id = f"g{uuid.uuid4().hex}"
         item_id = f"g{uuid.uuid4().hex}"
@@ -377,6 +399,27 @@ class CartridgeGenerator:
             else:
                 raise ValueError(f"Module with identifier {module_id} not found")
         
+        # Determine position for new item (1-based indexing, no gaps allowed)
+        if position is None:
+            item_position = len(module['items']) + 1
+        else:
+            # Clamp position to valid range (1-based, no gaps)
+            min_position = 1
+            max_position = len(module['items']) + 1
+            item_position = max(min_position, min(position, max_position))
+            
+            # Adjust positions of existing items if inserting at specific position
+            for existing_item in module['items']:
+                if existing_item['position'] >= item_position:
+                    existing_item['position'] += 1
+            
+            # Also adjust positions in organization items
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                for org_item in org_module['items']:
+                    if org_item['position'] >= item_position:
+                        org_item['position'] += 1
+
         # Add item to module
         item = {
             'identifier': item_id,
@@ -384,7 +427,7 @@ class CartridgeGenerator:
             'content_type': 'Assignment',
             'workflow_state': 'published' if published else 'unpublished',
             'identifierref': assignment_id,
-            'position': len(module['items']) + 1
+            'position': item_position
         }
         module['items'].append(item)
         
@@ -413,7 +456,8 @@ class CartridgeGenerator:
             org_module['items'].append({
                 'identifier': item_id,
                 'title': assignment_title,
-                'identifierref': assignment_id
+                'identifierref': assignment_id,
+                'position': item_position
             })
         
         # Update cartridge state
@@ -421,7 +465,7 @@ class CartridgeGenerator:
         
         return assignment_id
     
-    def add_quiz_to_module(self, module_id, quiz_title, quiz_description="", points=1, published=True):
+    def add_quiz_to_module(self, module_id, quiz_title, quiz_description="", points=1, published=True, position=None):
         """Add a quiz to a specific module using actual module identifier from DataFrame"""
         quiz_id = f"g{uuid.uuid4().hex}"
         assignment_id = f"g{uuid.uuid4().hex}"
@@ -463,6 +507,27 @@ class CartridgeGenerator:
             else:
                 raise ValueError(f"Module with identifier {module_id} not found")
         
+        # Determine position for new item (1-based indexing, no gaps allowed)
+        if position is None:
+            item_position = len(module['items']) + 1
+        else:
+            # Clamp position to valid range (1-based, no gaps)
+            min_position = 1
+            max_position = len(module['items']) + 1
+            item_position = max(min_position, min(position, max_position))
+            
+            # Adjust positions of existing items if inserting at specific position
+            for existing_item in module['items']:
+                if existing_item['position'] >= item_position:
+                    existing_item['position'] += 1
+            
+            # Also adjust positions in organization items
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                for org_item in org_module['items']:
+                    if org_item['position'] >= item_position:
+                        org_item['position'] += 1
+
         # Add item to module
         item = {
             'identifier': item_id,
@@ -470,7 +535,7 @@ class CartridgeGenerator:
             'content_type': 'Quizzes::Quiz',
             'workflow_state': 'published' if published else 'unpublished',
             'identifierref': quiz_id,
-            'position': len(module['items']) + 1
+            'position': item_position
         }
         module['items'].append(item)
         
@@ -509,7 +574,8 @@ class CartridgeGenerator:
             org_module['items'].append({
                 'identifier': item_id,
                 'title': quiz_title,
-                'identifierref': quiz_id
+                'identifierref': quiz_id,
+                'position': item_position
             })
         
         # Update cartridge state
@@ -517,7 +583,7 @@ class CartridgeGenerator:
         
         return quiz_id
     
-    def add_discussion_to_module(self, module_id, title, body, published=True):
+    def add_discussion_to_module(self, module_id, title, body, published=True, position=None):
         """Add a discussion topic to a specific module using actual module identifier from DataFrame"""
         topic_id = f"g{uuid.uuid4().hex}"
         meta_id = f"g{uuid.uuid4().hex}"
@@ -556,6 +622,27 @@ class CartridgeGenerator:
             else:
                 raise ValueError(f"Module with identifier {module_id} not found")
         
+        # Determine position for new item (1-based indexing, no gaps allowed)
+        if position is None:
+            item_position = len(module['items']) + 1
+        else:
+            # Clamp position to valid range (1-based, no gaps)
+            min_position = 1
+            max_position = len(module['items']) + 1
+            item_position = max(min_position, min(position, max_position))
+            
+            # Adjust positions of existing items if inserting at specific position
+            for existing_item in module['items']:
+                if existing_item['position'] >= item_position:
+                    existing_item['position'] += 1
+            
+            # Also adjust positions in organization items
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                for org_item in org_module['items']:
+                    if org_item['position'] >= item_position:
+                        org_item['position'] += 1
+
         # Add item to module
         item = {
             'identifier': item_id,
@@ -563,7 +650,7 @@ class CartridgeGenerator:
             'content_type': 'DiscussionTopic',
             'workflow_state': 'published' if published else 'unpublished',
             'identifierref': topic_id,
-            'position': len(module['items']) + 1
+            'position': item_position
         }
         module['items'].append(item)
         
@@ -597,7 +684,8 @@ class CartridgeGenerator:
             org_module['items'].append({
                 'identifier': item_id,
                 'title': title,
-                'identifierref': topic_id
+                'identifierref': topic_id,
+                'position': item_position
             })
         
         # Update cartridge state
@@ -605,7 +693,7 @@ class CartridgeGenerator:
         
         return topic_id
     
-    def add_assignment(self, assignment_title, assignment_content="", points=100, published=True):
+    def add_assignment_standalone(self, assignment_title, assignment_content="", points=100, published=True):
         """Add an assignment to the cartridge"""
         assignment_id = f"g{uuid.uuid4().hex}"
         
@@ -633,7 +721,7 @@ class CartridgeGenerator:
         
         return assignment_id
     
-    def add_quiz(self, quiz_title, quiz_description="", points=1, published=True):
+    def add_quiz_standalone(self, quiz_title, quiz_description="", points=1, published=True):
         """Add a quiz to the cartridge"""
         quiz_id = f"g{uuid.uuid4().hex}"
         assignment_id = f"g{uuid.uuid4().hex}"
@@ -675,67 +763,7 @@ class CartridgeGenerator:
         
         return quiz_id
     
-    def add_discussion_topic(self, module_id, title, body, published=True):
-        """Add a discussion topic to a specific module"""
-        topic_id = f"g{uuid.uuid4().hex}"
-        meta_id = f"g{uuid.uuid4().hex}"
-        item_id = f"g{uuid.uuid4().hex}"
-
-        # Find the module
-        module = next((m for m in self.modules if m['identifier'] == module_id), None)
-        if not module:
-            raise ValueError(f"Module with identifier {module_id} not found")
-
-        # Add item to module
-        item = {
-            'identifier': item_id,
-            'title': title,
-            'content_type': 'DiscussionTopic',
-            'workflow_state': 'published' if published else 'unpublished',
-            'identifierref': topic_id,
-            'position': len(module['items']) + 1
-        }
-        module['items'].append(item)
-
-        # Store discussion topic info
-        discussion_topic = {
-            'topic_id': topic_id,
-            'meta_id': meta_id,
-            'title': title,
-            'body': body,
-            'workflow_state': 'active' if published else 'unpublished',
-        }
-        self.announcements.append(discussion_topic)
-
-        # Add to resources
-        self.resources.append({
-            'identifier': topic_id,
-            'type': 'imsdt_xmlv1p1',
-            'href': f"discussions/{topic_id}.xml",
-            'dependency': meta_id
-        })
-
-        self.resources.append({
-            'identifier': meta_id,
-            'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
-            'href': f"discussions/{meta_id}.xml"
-        })
-        
-        # Add to organization structure
-        org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
-        if org_module:
-            org_module['items'].append({
-                'identifier': item_id,
-                'title': title,
-                'identifierref': topic_id
-            })
-
-        # Update cartridge state
-        self._update_cartridge_state()
-
-        return topic_id
-    
-    def add_standalone_wiki_page(self, page_title, page_content="", published=True):
+    def add_wiki_page_standalone(self, page_title, page_content="", published=True):
         """Add a standalone wiki page (not attached to any module)"""
         page_id = f"g{uuid.uuid4().hex}"
         resource_id = f"g{uuid.uuid4().hex}"
@@ -763,7 +791,7 @@ class CartridgeGenerator:
         
         return page_id
     
-    def add_standalone_discussion(self, title, body, published=True):
+    def add_discussion_standalone(self, title, body, published=True):
         """Add a standalone discussion (not attached to any module)"""
         topic_id = f"g{uuid.uuid4().hex}"
         meta_id = f"g{uuid.uuid4().hex}"
@@ -797,7 +825,7 @@ class CartridgeGenerator:
         
         return topic_id
     
-    def add_file_to_module(self, module_id, filename, file_content):
+    def add_file_to_module(self, module_id, filename, file_content, position=None):
         """Add a file to a specific module using actual module identifier from DataFrame"""
         file_id = f"g{uuid.uuid4().hex}"
         item_id = f"g{uuid.uuid4().hex}"
@@ -835,6 +863,27 @@ class CartridgeGenerator:
             else:
                 raise ValueError(f"Module with identifier {module_id} not found")
         
+        # Determine position for new item (1-based indexing, no gaps allowed)
+        if position is None:
+            item_position = len(module['items']) + 1
+        else:
+            # Clamp position to valid range (1-based, no gaps)
+            min_position = 1
+            max_position = len(module['items']) + 1
+            item_position = max(min_position, min(position, max_position))
+            
+            # Adjust positions of existing items if inserting at specific position
+            for existing_item in module['items']:
+                if existing_item['position'] >= item_position:
+                    existing_item['position'] += 1
+            
+            # Also adjust positions in organization items
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                for org_item in org_module['items']:
+                    if org_item['position'] >= item_position:
+                        org_item['position'] += 1
+
         # Add item to module
         item = {
             'identifier': item_id,
@@ -842,7 +891,7 @@ class CartridgeGenerator:
             'content_type': 'Attachment',
             'workflow_state': 'published',
             'identifierref': file_id,
-            'position': len(module['items']) + 1
+            'position': item_position
         }
         module['items'].append(item)
         
@@ -868,7 +917,8 @@ class CartridgeGenerator:
             org_module['items'].append({
                 'identifier': item_id,
                 'title': filename,
-                'identifierref': file_id
+                'identifierref': file_id,
+                'position': item_position
             })
         
         # Update cartridge state
@@ -949,7 +999,7 @@ class CartridgeGenerator:
     <items>
 """
             
-            for item in module['items']:
+            for item in sorted(module['items'], key=lambda x: x['position']):
                 content += f"""      <item identifier="{item['identifier']}">
         <content_type>{item['content_type']}</content_type>
         <workflow_state>{item['workflow_state']}</workflow_state>
@@ -1353,7 +1403,7 @@ class CartridgeGenerator:
             content += f"""        <item identifier="{org_item['identifier']}">
           <title>{org_item['title']}</title>
 """
-            for item in org_item['items']:
+            for item in sorted(org_item['items'], key=lambda x: x['position']):
                 content += f"""          <item identifier="{item['identifier']}" identifierref="{item['identifierref']}">
             <title>{item['title']}</title>
           </item>
@@ -1456,45 +1506,60 @@ def main():
     
     # Add modules
     print("Adding module...")
-    module_id_test1 = generator.add_module("test1", position=1, published=True)
+    module_id_test1 = generator.add_module("module1", position=1, published=True)
 
-    print("Adding module...")
-    module_id_test2 = generator.add_module("test2", position=2, published=True)
+    #print("Adding module...")
+    #module_id_test2 = generator.add_module("test2", position=2, published=True)
 
-    print("Adding module...")
-    module_id_test3 = generator.add_module("test3", position=3, published=True)
+    #print("Adding module...")
+    #module_id_test3 = generator.add_module("test3", position=3, published=True)
 
     #selecting module 1,2, and 3
-    selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test1")]).identifier.item()
-    selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test2")]).identifier.item()
-    selected_module_3_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test3")]).identifier.item()
+    selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
+    #selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test2")]).identifier.item()
+    #selected_module_3_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test3")]).identifier.item()
 
     # Add wiki page to selected existing module
     print("Adding wiki page to existing module...")
-    generator.add_wiki_page_to_module(selected_module_1_id, "test_wiki_page1", "<p>This is test1 wiki content</p>", published=True)
-    generator.add_wiki_page_to_module(selected_module_2_id, "test_wiki_page2", "<p>This is test2 wiki content</p>", published=True)
-    generator.add_wiki_page_to_module(selected_module_3_id, "test_wiki_page3", "<p>This is test3 wiki content</p>", published=True)
+    generator.add_wiki_page_to_module(selected_module_1_id, "init_page", "<p>placeholder</p>", published=True)
+    #generator.add_wiki_page_to_module(selected_module_1_id, "init second", "<p>placeholder</p>", published=True)
+    #generator.add_wiki_page_to_module(selected_module_2_id, "test_wiki_page2", "<p>This is test2 wiki content</p>", published=True)
+    #generator.add_wiki_page_to_module(selected_module_3_id, "test_wiki_page3", "<p>This is test3 wiki content</p>", published=True)
     
     # Add assignment to selected existing module
     print("Adding assignment to existing module...")
-    generator.add_assignment_to_module(selected_module_2_id, "Module 2 Assignment", "<p>Complete this assignment for module 2</p>", points=50, published=True)
+    generator.add_assignment_to_module(selected_module_1_id, "regular_assignment", "<p>This assignment will be at the end</p>", points=50, published=True)
+    
+    # Add assignment with specific position to demonstrate position parameter
+    print("Adding assignment with specific position...")
+    generator.add_assignment_to_module(selected_module_1_id, "first_assignment", "<p>This assignment should be at position 0</p>", points=100, published=True, position=0)
     
     # Add quiz to selected existing module  
-    print("Adding quiz to existing module...")
-    generator.add_quiz_to_module(selected_module_3_id, "Module 3 Quiz", "Test your knowledge of module 3", points=25, published=True)
+    #print("Adding quiz to existing module...")
+    #generator.add_quiz_to_module(selected_module_3_id, "Module 3 Quiz", "Test your knowledge of module 3", points=25, published=True)
     
     # Add discussion to selected existing module
-    print("Adding discussion to existing module...")
-    generator.add_discussion_to_module(selected_module_1_id, "Module 1 Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
+    #print("Adding discussion to existing module...")
+    #generator.add_discussion_to_module(selected_module_1_id, "Module 1 Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
     
     # Add file to selected existing module
-    print("Adding file to existing module...")
-    generator.add_file_to_module(selected_module_1_id, "module_file.txt", "This file is attached to module 1")
+    #print("Adding file to existing module...")
+    #generator.add_file_to_module(selected_module_1_id, "module_file.txt", "This file is attached to module 1")
 
+    # Add more wiki pages to demonstrate position parameter
+    #print("Adding wiki page with specific position...")
+    generator.add_wiki_page_to_module(selected_module_1_id, "first_position_page", "<p>test</p>", published=True, position=0)
+    generator.add_assignment_to_module(selected_module_1_id, "test", "<p>This assignment should be at position 0</p>", points=100, published=True, position=0)
+    generator.add_quiz_to_module(selected_module_1_id, "Quiz Title", position=4) 
+    generator.add_discussion_to_module(selected_module_1_id, "Discussion Title", "Discussion body", position=1)
+    generator.add_file_to_module(selected_module_1_id, "filename.txt", "file content", position=3)
     '''
+    generator.add_wiki_page_to_module(selected_module_1_id, "insert_first_page", "<p>placeholder/p>", published=True, position=0)
+
+    
     # Add standalone discussion (not attached to any module)
     print("Adding standalone discussion...")
-    generator.add_standalone_discussion("Standalone Discussion", "<p>This is a standalone discussion not attached to any module</p>", published=True)
+    generator.add_discussion_standalone("Standalone Discussion", "<p>This is a standalone discussion not attached to any module</p>", published=True)
     
     # Add standalone file
     print("Adding standalone file...")
@@ -1502,15 +1567,15 @@ def main():
 
     # Add standalone wiki page (not attached to any module)
     print("Adding standalone wiki page...")
-    generator.add_standalone_wiki_page("standalone_wiki_page", "<p>This is a standalone wiki page not attached to any module</p>", published=True)
+    generator.add_wiki_page_standalone("standalone_wiki_page", "<p>This is a standalone wiki page not attached to any module</p>", published=True)
 
     # Add assignment
     print("Adding assignment...")
-    generator.add_assignment("my first assignment", "write me 100 words about why the sky is blue. ", 100, published=True)
+    generator.add_assignment_standalone("my first assignment", "write me 100 words about why the sky is blue. ", 100, published=True)
     
     # Add quiz
     print("Adding quiz...")
-    generator.add_quiz("my first quiz!", "only 1 attempt. good luck.", 1, published=True)
+    generator.add_quiz_standalone("my first quiz!", "only 1 attempt. good luck.", 1, published=True)
 
     #Add discussion topic to module
     print("Adding discussion topic...")
