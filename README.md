@@ -17,20 +17,20 @@ python cartridge_generator.py output_directory --title "Course Title" --code "CO
 ### Module-Based Content Functions
 These functions add content to specific modules using DataFrame-based module selection:
 
-- `add_wiki_page_to_module(position=None)` - Adds wiki pages to modules
-- `add_assignment_to_module(position=None)` - Adds assignments to modules  
-- `add_quiz_to_module(position=None)` - Adds quizzes to modules
-- `add_discussion_to_module(position=None)` - Adds discussion topics to modules
-- `add_file_to_module(position=None)` - Adds file attachments to modules
+- `add_wiki_page_to_module(module_id, page_title, page_content="", published=True, position=None)` - Adds wiki pages to modules
+- `add_assignment_to_module(module_id, assignment_title, assignment_content="", points=100, published=True, position=None)` - Adds assignments to modules  
+- `add_quiz_to_module(module_id, quiz_title, quiz_description="", points=1, published=True, position=None)` - Adds quizzes to modules
+- `add_discussion_to_module(module_id, title, body, published=True, position=None)` - Adds discussion topics to modules
+- `add_file_to_module(module_id, filename, file_content, position=None)` - Adds file attachments to modules
 
 ### Standalone Content Functions 
 These functions create content not attached to any module:
 
-- `add_wiki_page_standalone()` - Creates standalone wiki pages
-- `add_assignment_standalone()` - Creates standalone assignments
-- `add_quiz_standalone()` - Creates standalone quizzes
-- `add_discussion_standalone()` - Creates standalone discussion topics
-- `add_file_standalone()` - Creates standalone files
+- `add_wiki_page_standalone(page_title, page_content="", published=True)` - Creates standalone wiki pages
+- `add_assignment_standalone(assignment_title, assignment_content="", points=100, published=True)` - Creates standalone assignments
+- `add_quiz_standalone(quiz_title, quiz_description="", points=1, published=True)` - Creates standalone quizzes
+- `add_discussion_standalone(title, body, published=True)` - Creates standalone discussion topics
+- `add_file_standalone(filename, file_content)` - Creates standalone files
 
 ## Key Features
 
@@ -43,12 +43,23 @@ All module-based functions now support an optional `position` parameter:
 
 **Examples:**
 ```python
-# Add to end of module (default behavior)
-generator.add_wiki_page_to_module(module_id, "Page Title", "Content")
+  # Create generator
+  generator = CartridgeGenerator(args.title, args.code)
+  
+  # Create base cartridge
+  print(f"Creating base cartridge: {args.output_dir}")
+  generator.create_base_cartridge(args.output_dir)
+  
+  # Add modules
+  print("Adding module...")
+  module_id_test1 = generator.add_module("module1", position=1, published=True)
 
-# Insert at specific position
-generator.add_wiki_page_to_module(module_id, "Page Title", "Content", position=1)  # First position
-generator.add_assignment_to_module(module_id, "Assignment", "Content", position=3)  # Third position
+  #selecting module 1
+  selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
+  
+  # Add discussion to selected existing module
+  #print("Adding discussion to existing module...")
+  generator.add_discussion_to_module(selected_module_1_id, "1_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
 ```
 
 ### Other Features
