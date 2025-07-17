@@ -92,10 +92,26 @@ def scan_cartridge(input_cartridge_path):
                 resource_type = resource.get('type')
                 href = resource.get('href')
                 
+                # Extract title from specific resource types
+                title = None
+                if resource_type == 'imsdt_xmlv1p1' and href:
+                    # Discussion topic - extract title from XML file
+                    discussion_file = cartridge_path / href
+                    if discussion_file.exists():
+                        try:
+                            discussion_tree = ET.parse(discussion_file)
+                            discussion_root = discussion_tree.getroot()
+                            # Discussion topics have title in <title> element
+                            title_elem = discussion_root.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1}title')
+                            if title_elem is not None:
+                                title = title_elem.text
+                        except Exception:
+                            title = None
+                
                 data.append({
                     'type': 'resource',
                     'identifier': resource_id,
-                    'title': None,
+                    'title': title,
                     'workflow_state': None,
                     'position': None,
                     'content_type': None,

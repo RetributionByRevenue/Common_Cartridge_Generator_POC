@@ -58,6 +58,59 @@ generator.add_assignment_to_module(module_id, "Assignment", "Content", position=
 - **Flexible content creation**: Support for both module-attached and standalone content
 - **XML synchronization**: Both `module_meta.xml` and `imsmanifest.xml` maintain perfect ordering
 
+## Content Deletion
+
+The tool provides deletion functions for removing content from cartridges. Each content type has its own selection method and deletion function.
+
+### Content Selection Methods
+
+Use these patterns to select content for deletion from the DataFrame:
+
+```python
+# Wiki pages - select by type and title
+selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "page_name")]).identifier.item()
+
+# Assignments - select by type and title  
+selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_name")]).identifier.item()
+
+# Quizzes - select by type and title
+selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_name")]).identifier.item()
+
+# Files - select by type and href (file path)
+selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename.txt")]).identifier.item()
+
+# Discussions - select by type and title
+selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "discussion_name")]).identifier.item()
+```
+
+### Deletion Functions
+
+Once content is selected, use these functions to delete it:
+
+```python
+# Delete wiki page
+generator.delete_wiki_page_by_id(selected_wiki)
+
+# Delete assignment  
+generator.delete_assignment_by_id(selected_assignment)
+
+# Delete quiz
+generator.delete_quiz_by_id(selected_quiz)
+
+# Delete file
+generator.delete_file_by_id(selected_file)
+
+# Delete discussion
+generator.delete_discussion_by_id(selected_discussion)
+```
+
+Each deletion function:
+- Removes content from internal data structures
+- Cleans up XML references in manifest and module files
+- Deletes physical files and directories
+- Adjusts position numbering for remaining module items
+- Updates cartridge state automatically
+
 ## Output
 
 The script generates:

@@ -361,6 +361,369 @@ class CartridgeGenerator:
         
         return page_id
     
+    def delete_wiki_page_by_id(self, page_id):
+        """Delete a wiki page by its identifier (page ID or resource ID)"""
+        # Find the wiki page in our internal list
+        page_to_delete = None
+        for i, page in enumerate(self.wiki_pages):
+            if page['identifier'] == page_id or page['resource_id'] == page_id:
+                page_to_delete = page
+                page_index = i
+                break
+        
+        if not page_to_delete:
+            raise ValueError(f"Wiki page with identifier {page_id} not found")
+        
+        resource_id = page_to_delete['resource_id']
+        
+        # Remove from wiki_pages list
+        self.wiki_pages.pop(page_index)
+        
+        # Remove from resources list
+        self.resources = [r for r in self.resources if r['identifier'] != resource_id]
+        
+        # Remove from modules and organization items
+        for module in self.modules:
+            # Find and remove the module item that references this wiki page
+            items_to_remove = []
+            for item in module['items']:
+                if item['identifierref'] == resource_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove from organization structure
+        for org_module in self.organization_items:
+            items_to_remove = []
+            for item in org_module['items']:
+                if item['identifierref'] == resource_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                org_module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in org_module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove the physical wiki page file if it exists
+        if self.output_dir:
+            wiki_file_path = Path(self.output_dir) / page_to_delete['filename']
+            if wiki_file_path.exists():
+                wiki_file_path.unlink()
+                print(f"Removed wiki file: {page_to_delete['filename']}")
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"Wiki page '{page_to_delete['title']}' (ID: {page_id}) has been deleted")
+        return True
+    
+    def delete_assignment_by_id(self, assignment_id):
+        """Delete an assignment by its identifier"""
+        # Find the assignment in our internal list
+        assignment_to_delete = None
+        for i, assignment in enumerate(self.assignments):
+            if assignment['identifier'] == assignment_id:
+                assignment_to_delete = assignment
+                assignment_index = i
+                break
+        
+        if not assignment_to_delete:
+            raise ValueError(f"Assignment with identifier {assignment_id} not found")
+        
+        # Remove from assignments list
+        self.assignments.pop(assignment_index)
+        
+        # Remove from resources list
+        self.resources = [r for r in self.resources if r['identifier'] != assignment_id]
+        
+        # Remove from modules and organization items
+        for module in self.modules:
+            # Find and remove the module item that references this assignment
+            items_to_remove = []
+            for item in module['items']:
+                if item['identifierref'] == assignment_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove from organization structure
+        for org_module in self.organization_items:
+            items_to_remove = []
+            for item in org_module['items']:
+                if item['identifierref'] == assignment_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                org_module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in org_module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove the physical assignment directory and files if they exist
+        if self.output_dir:
+            assignment_dir_path = Path(self.output_dir) / assignment_id
+            if assignment_dir_path.exists():
+                shutil.rmtree(assignment_dir_path)
+                print(f"Removed assignment directory: {assignment_id}/")
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"Assignment '{assignment_to_delete['title']}' (ID: {assignment_id}) has been deleted")
+        return True
+    
+    def delete_quiz_by_id(self, quiz_id):
+        """Delete a quiz by its identifier"""
+        # Find the quiz in our internal list
+        quiz_to_delete = None
+        for i, quiz in enumerate(self.quizzes):
+            if quiz['identifier'] == quiz_id:
+                quiz_to_delete = quiz
+                quiz_index = i
+                break
+        
+        if not quiz_to_delete:
+            raise ValueError(f"Quiz with identifier {quiz_id} not found")
+        
+        # Remove from quizzes list
+        self.quizzes.pop(quiz_index)
+        
+        # Remove all related resources (quiz has multiple resource entries)
+        resources_to_remove = []
+        dependency_ids = []
+        
+        for resource in self.resources:
+            # Find main quiz resource and its dependency
+            if resource['identifier'] == quiz_id:
+                if 'dependency' in resource:
+                    dependency_ids.append(resource['dependency'])
+                resources_to_remove.append(resource['identifier'])
+            # Find dependency resource  
+            elif resource['identifier'] in dependency_ids:
+                resources_to_remove.append(resource['identifier'])
+        
+        # Remove all identified resources
+        self.resources = [r for r in self.resources if r['identifier'] not in resources_to_remove]
+        
+        # Remove from modules and organization items
+        for module in self.modules:
+            # Find and remove the module item that references this quiz
+            items_to_remove = []
+            for item in module['items']:
+                if item['identifierref'] == quiz_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove from organization structure
+        for org_module in self.organization_items:
+            items_to_remove = []
+            for item in org_module['items']:
+                if item['identifierref'] == quiz_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                org_module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in org_module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove the physical quiz directory and files if they exist
+        if self.output_dir:
+            quiz_dir_path = Path(self.output_dir) / quiz_id
+            if quiz_dir_path.exists():
+                shutil.rmtree(quiz_dir_path)
+                print(f"Removed quiz directory: {quiz_id}/")
+            
+            # Remove QTI files from non_cc_assessments directory
+            non_cc_dir = Path(self.output_dir) / "non_cc_assessments"
+            if non_cc_dir.exists():
+                # Remove all QTI files that match this quiz ID or contain this quiz title
+                qti_files_to_remove = list(non_cc_dir.glob(f"*{quiz_id}*.xml.qti"))
+                
+                # Also check for QTI files that contain the quiz title (for orphaned files)
+                for qti_file in non_cc_dir.glob("*.xml.qti"):
+                    try:
+                        with open(qti_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            if quiz_to_delete['title'] in content and qti_file not in qti_files_to_remove:
+                                qti_files_to_remove.append(qti_file)
+                    except:
+                        pass  # Skip files that can't be read
+                
+                for qti_file in qti_files_to_remove:
+                    qti_file.unlink()
+                    print(f"Removed QTI file: {qti_file.name}")
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"Quiz '{quiz_to_delete['title']}' (ID: {quiz_id}) has been deleted")
+        return True
+    
+    def delete_file_by_id(self, file_id):
+        """Delete a file by its identifier (resource ID)"""
+        # Find the file in our internal list
+        file_to_delete = None
+        for i, file_info in enumerate(self.files):
+            if file_info['identifier'] == file_id:
+                file_to_delete = file_info
+                file_index = i
+                break
+        
+        if not file_to_delete:
+            raise ValueError(f"File with identifier {file_id} not found")
+        
+        # Remove from files list
+        self.files.pop(file_index)
+        
+        # Remove from resources list
+        self.resources = [r for r in self.resources if r['identifier'] != file_id]
+        
+        # Remove from modules and organization items
+        for module in self.modules:
+            # Find and remove the module item that references this file
+            items_to_remove = []
+            for item in module['items']:
+                if item['identifierref'] == file_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove from organization structure
+        for org_module in self.organization_items:
+            items_to_remove = []
+            for item in org_module['items']:
+                if item['identifierref'] == file_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                org_module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in org_module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove the physical file if it exists
+        if self.output_dir:
+            file_path = Path(self.output_dir) / file_to_delete['path']
+            if file_path.exists():
+                file_path.unlink()
+                print(f"Removed file: {file_to_delete['path']}")
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"File '{file_to_delete['filename']}' (ID: {file_id}) has been deleted")
+        return True
+    
+    def delete_discussion_by_id(self, discussion_id):
+        """Delete a discussion by its identifier (main discussion topic ID)"""
+        # Find the discussion in our internal list
+        discussion_to_delete = None
+        for i, discussion in enumerate(self.announcements):
+            if discussion['topic_id'] == discussion_id:
+                discussion_to_delete = discussion
+                discussion_index = i
+                break
+        
+        if not discussion_to_delete:
+            raise ValueError(f"Discussion with identifier {discussion_id} not found")
+        
+        # Remove from announcements list (discussions are stored here)
+        self.announcements.pop(discussion_index)
+        
+        # Remove all related resources (discussion has multiple resource entries like quizzes)
+        resources_to_remove = []
+        dependency_ids = []
+        
+        for resource in self.resources:
+            # Find main discussion resource and its dependency
+            if resource['identifier'] == discussion_id:
+                if 'dependency' in resource:
+                    dependency_ids.append(resource['dependency'])
+                resources_to_remove.append(resource['identifier'])
+            # Find dependency resource  
+            elif resource['identifier'] in dependency_ids:
+                resources_to_remove.append(resource['identifier'])
+        
+        # Remove all identified resources
+        self.resources = [r for r in self.resources if r['identifier'] not in resources_to_remove]
+        
+        # Remove from modules and organization items
+        for module in self.modules:
+            # Find and remove the module item that references this discussion
+            items_to_remove = []
+            for item in module['items']:
+                if item['identifierref'] == discussion_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove from organization structure
+        for org_module in self.organization_items:
+            items_to_remove = []
+            for item in org_module['items']:
+                if item['identifierref'] == discussion_id:
+                    items_to_remove.append(item)
+            
+            for item in items_to_remove:
+                org_module['items'].remove(item)
+                # Adjust positions of remaining items
+                for remaining_item in org_module['items']:
+                    if remaining_item['position'] > item['position']:
+                        remaining_item['position'] -= 1
+        
+        # Remove the physical discussion files if they exist
+        if self.output_dir:
+            discussions_dir = Path(self.output_dir) / "discussions"
+            if discussions_dir.exists():
+                # Remove all discussion files that match this discussion ID
+                discussion_files_to_remove = list(discussions_dir.glob(f"*{discussion_id}*.xml"))
+                
+                # Also check for dependency files
+                for dep_id in dependency_ids:
+                    discussion_files_to_remove.extend(discussions_dir.glob(f"*{dep_id}*.xml"))
+                
+                for discussion_file in discussion_files_to_remove:
+                    discussion_file.unlink()
+                    print(f"Removed discussion file: {discussion_file.name}")
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"Discussion '{discussion_to_delete['title']}' (ID: {discussion_id}) has been deleted")
+        return True
+    
     def add_assignment_to_module(self, module_id, assignment_title, assignment_content="", points=100, published=True, position=None):
         """Add an assignment to a specific module using actual module identifier from DataFrame"""
         assignment_id = f"g{uuid.uuid4().hex}"
@@ -1518,69 +1881,42 @@ def main():
     selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
     #selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test2")]).identifier.item()
     #selected_module_3_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test3")]).identifier.item()
-
-    # Add wiki page to selected existing module
-    print("Adding wiki page to existing module...")
-    generator.add_wiki_page_to_module(selected_module_1_id, "init_page", "<p>placeholder</p>", published=True)
-    #generator.add_wiki_page_to_module(selected_module_1_id, "init second", "<p>placeholder</p>", published=True)
-    #generator.add_wiki_page_to_module(selected_module_2_id, "test_wiki_page2", "<p>This is test2 wiki content</p>", published=True)
-    #generator.add_wiki_page_to_module(selected_module_3_id, "test_wiki_page3", "<p>This is test3 wiki content</p>", published=True)
-    
-    # Add assignment to selected existing module
-    print("Adding assignment to existing module...")
-    generator.add_assignment_to_module(selected_module_1_id, "regular_assignment", "<p>This assignment will be at the end</p>", points=50, published=True)
-    
-    # Add assignment with specific position to demonstrate position parameter
-    print("Adding assignment with specific position...")
-    generator.add_assignment_to_module(selected_module_1_id, "first_assignment", "<p>This assignment should be at position 0</p>", points=100, published=True, position=0)
-    
-    # Add quiz to selected existing module  
-    #print("Adding quiz to existing module...")
-    #generator.add_quiz_to_module(selected_module_3_id, "Module 3 Quiz", "Test your knowledge of module 3", points=25, published=True)
     
     # Add discussion to selected existing module
     #print("Adding discussion to existing module...")
-    #generator.add_discussion_to_module(selected_module_1_id, "Module 1 Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
-    
-    # Add file to selected existing module
-    #print("Adding file to existing module...")
-    #generator.add_file_to_module(selected_module_1_id, "module_file.txt", "This file is attached to module 1")
+    generator.add_discussion_to_module(selected_module_1_id, "1_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
+    #generator.add_discussion_to_module(selected_module_1_id, "2_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
 
-    # Add more wiki pages to demonstrate position parameter
-    #print("Adding wiki page with specific position...")
-    generator.add_wiki_page_to_module(selected_module_1_id, "first_position_page", "<p>test</p>", published=True, position=0)
-    generator.add_assignment_to_module(selected_module_1_id, "test", "<p>This assignment should be at position 0</p>", points=100, published=True, position=0)
-    generator.add_quiz_to_module(selected_module_1_id, "Quiz Title", position=4) 
-    generator.add_discussion_to_module(selected_module_1_id, "Discussion Title", "Discussion body", position=1)
-    generator.add_file_to_module(selected_module_1_id, "filename.txt", "file content", position=3)
+    # selecting discussion by resource and title
+    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "1_Discussion")]).identifier.item()
+    print(f"Discussion ID to delete: {selected_discussion}")
+
+    # delete discussion by id
+    generator.delete_discussion_by_id(selected_discussion)
+    
+
+    # select file by href
+    #selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/module_file.txt")]).identifier.item()
+    #print(f"File ID to delete: {selected_file}")
+
+    # delete file by id
+    #generator.delete_file_by_id(selected_file)
+    #generator.add_discussion_to_module(selected_module_1_id, "Module 1 Discussion", "<p>placeholder</p>", published=True)
+    #generator.add_discussion_to_module(selected_module_2_id, "Module 2 Discussion", "<p>placeholder</p>", published=True)
+
+    #selected_discussion = generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "init_quiz_1")]
+
     '''
-    generator.add_wiki_page_to_module(selected_module_1_id, "insert_first_page", "<p>placeholder/p>", published=True, position=0)
-
-    
-    # Add standalone discussion (not attached to any module)
-    print("Adding standalone discussion...")
-    generator.add_discussion_standalone("Standalone Discussion", "<p>This is a standalone discussion not attached to any module</p>", published=True)
-    
-    # Add standalone file
-    print("Adding standalone file...")
-    generator.add_file_standalone("hello.txt", "hello world!")
-
-    # Add standalone wiki page (not attached to any module)
-    print("Adding standalone wiki page...")
-    generator.add_wiki_page_standalone("standalone_wiki_page", "<p>This is a standalone wiki page not attached to any module</p>", published=True)
-
-    # Add assignment
-    print("Adding assignment...")
-    generator.add_assignment_standalone("my first assignment", "write me 100 words about why the sky is blue. ", 100, published=True)
-    
-    # Add quiz
-    print("Adding quiz...")
-    generator.add_quiz_standalone("my first quiz!", "only 1 attempt. good luck.", 1, published=True)
-
-    #Add discussion topic to module
-    print("Adding discussion topic...")
-    generator.add_discussion_topic(module_id, "My First Discussion", "<p>This is the body of the discussion.</p>", published=True)
+    # isolate quiz id (use the main quiz identifier, not assessment_meta)
+    quiz_matches = generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "init_quiz_1")]
+    print(f"Found quiz matches: {len(quiz_matches)}")
+    print(quiz_matches[['type', 'title', 'identifier']].to_string())
+    selected_quiz = quiz_matches.iloc[0]['identifier']  # Take the first match
+    print(f"Quiz ID to delete: {selected_quiz}")
+    # delete quiz by id
+    generator.delete_quiz_by_id(selected_quiz)
     '''
+
 
     #zip the cartridge
     shutil.make_archive('./generated_cartridge','zip','./generated_cartridge')
