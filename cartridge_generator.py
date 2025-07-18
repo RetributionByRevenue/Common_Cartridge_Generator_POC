@@ -735,6 +735,60 @@ class CartridgeGenerator:
         print(f"Discussion '{discussion_to_delete['title']}' (ID: {discussion_id}) has been deleted")
         return True
     
+    def delete_module_by_id(self, module_id):
+        """Delete a module and all its contents by its identifier"""
+        # Find the module in our internal list
+        module_to_delete = None
+        for i, module in enumerate(self.modules):
+            if module['identifier'] == module_id:
+                module_to_delete = module
+                module_index = i
+                break
+        
+        if not module_to_delete:
+            raise ValueError(f"Module with identifier {module_id} not found")
+        
+        # Get all items in the module and delete them first
+        items_to_delete = []
+        for item in module_to_delete['items']:
+            items_to_delete.append({
+                'identifierref': item['identifierref'],
+                'content_type': item['content_type'],
+                'title': item['title']
+            })
+        
+        # Delete all module items using existing deletion methods
+        for item in items_to_delete:
+            try:
+                if item['content_type'] == 'WikiPage':
+                    self.delete_wiki_page_by_id(item['identifierref'])
+                elif item['content_type'] == 'Assignment':
+                    self.delete_assignment_by_id(item['identifierref'])
+                elif item['content_type'] == 'Quizzes::Quiz':
+                    self.delete_quiz_by_id(item['identifierref'])
+                elif item['content_type'] == 'DiscussionTopic':
+                    self.delete_discussion_by_id(item['identifierref'])
+                elif item['content_type'] == 'Attachment':
+                    self.delete_file_by_id(item['identifierref'])
+                else:
+                    print(f"Warning: Unknown content type '{item['content_type']}' for item '{item['title']}'")
+            except Exception as e:
+                print(f"Warning: Could not delete item '{item['title']}': {e}")
+        
+        # Now delete the empty module
+        # Remove from modules list
+        self.modules.pop(module_index)
+        
+        # Remove from organization structure
+        self.organization_items = [org_item for org_item in self.organization_items 
+                                 if org_item['identifier'] != module_id]
+        
+        # Update cartridge state
+        self._update_cartridge_state()
+        
+        print(f"Module '{module_to_delete['title']}' (ID: {module_id}) and all its contents have been deleted")
+        return True
+    
     def add_assignment_to_module(self, module_id, assignment_title, assignment_content="", points=100, published=True, position=None):
         """Add an assignment to a specific module using actual module identifier from DataFrame"""
         assignment_id = f"g{uuid.uuid4().hex}"
@@ -1911,15 +1965,17 @@ def main():
     selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()
     
     # Delete wiki page
-    generator.delete_wiki_page_by_id(selected_wiki)
+    #generator.delete_wiki_page_by_id(selected_wiki)
     # Delete assignment  
-    generator.delete_assignment_by_id(selected_assignment)
+    #generator.delete_assignment_by_id(selected_assignment)
     # Delete quiz
-    generator.delete_quiz_by_id(selected_quiz)
+    #generator.delete_quiz_by_id(selected_quiz)
     # Delete file
-    generator.delete_file_by_id(selected_file)
+    #generator.delete_file_by_id(selected_file)
     # Delete discussion
-    generator.delete_discussion_by_id(selected_discussion)
+    #generator.delete_discussion_by_id(selected_discussion)
+
+    generator.delete_module_by_id(selected_module_1_id)
     
 
     #zip the cartridge
