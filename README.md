@@ -145,12 +145,79 @@ generator.delete_file_by_id(selected_file)
 generator.delete_discussion_by_id(selected_discussion)
 ```
 
+### Module Deletion
+
+Delete an entire module and all its contents:
+
+```python
+# Get module ID
+module_id = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")].identifier.item()
+
+# Delete entire module and all its contents
+generator.delete_module_by_id(module_id)
+```
+
+The `delete_module_by_id()` function:
+- Deletes all content inside the module (wiki pages, assignments, quizzes, discussions, files)
+- Uses existing deletion methods for each content type
+- Removes the empty module from all structures
+- Provides comprehensive cleanup with error handling
+
 Each deletion function:
 - Removes content from internal data structures
 - Cleans up XML references in manifest and module files
 - Deletes physical files and directories
 - Adjusts position numbering for remaining module items
 - Updates cartridge state automatically
+
+## Content Updates
+
+The tool provides update functions for modifying existing content without deleting and recreating it. Each content type has its own update method.
+
+### Update Functions
+
+```python
+# Update wiki page
+generator.update_wiki(wiki_id, page_title="New Title", page_content="New content", published=True)
+
+# Update assignment
+generator.update_assignment(assignment_id, assignment_title="New Title", assignment_content="New content", points=150, published=True)
+
+# Update quiz
+generator.update_quiz(quiz_id, quiz_title="New Title", quiz_description="New description", points=5, published=True)
+
+# Update discussion
+generator.update_discussion(discussion_id, title="New Title", body="New content", published=True)
+
+# Update file
+generator.update_file(file_id, filename="new_file.txt", file_content="New content")
+```
+
+### Update Features
+
+All update functions support:
+- **Selective Updates**: Only specify the parameters you want to change
+- **Reference Synchronization**: Automatically updates all references in modules and organization items
+- **State Consistency**: Maintains proper workflow states across all structures
+- **Detailed Logging**: Shows exactly what was changed
+- **No-op Safety**: Only applies changes if values actually differ
+
+**Examples:**
+```python
+# Update just the title
+generator.update_wiki(wiki_id, page_title="Updated Page Title")
+
+# Update multiple properties
+generator.update_assignment(assignment_id, 
+                           assignment_title="Updated Assignment",
+                           points=200,
+                           published=False)
+```
+
+Each update function will show you exactly what changed:
+```
+Wiki page 'Updated Page Title' (ID: g123...) updated: title: 'old title' → 'Updated Page Title', content updated, published: False → True
+```
 
 ## Output
 
