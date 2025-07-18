@@ -554,25 +554,36 @@ class CartridgeGenerator:
                 shutil.rmtree(quiz_dir_path)
                 print(f"Removed quiz directory: {quiz_id}/")
             
-            # Remove QTI files from non_cc_assessments directory
+            # Remove QTI files from non_cc_assessments directory using tracked files
             non_cc_dir = Path(self.output_dir) / "non_cc_assessments"
             if non_cc_dir.exists():
-                # Remove all QTI files that match this quiz ID or contain this quiz title
-                qti_files_to_remove = list(non_cc_dir.glob(f"*{quiz_id}*.xml.qti"))
-                
-                # Also check for QTI files that contain the quiz title (for orphaned files)
-                for qti_file in non_cc_dir.glob("*.xml.qti"):
-                    try:
-                        with open(qti_file, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            if quiz_to_delete['title'] in content and qti_file not in qti_files_to_remove:
-                                qti_files_to_remove.append(qti_file)
-                    except:
-                        pass  # Skip files that can't be read
-                
-                for qti_file in qti_files_to_remove:
-                    qti_file.unlink()
-                    print(f"Removed QTI file: {qti_file.name}")
+                # Use tracked QTI files if available
+                if hasattr(self, 'quiz_qti_files') and quiz_id in self.quiz_qti_files:
+                    qti_files_to_remove = self.quiz_qti_files[quiz_id]
+                    for qti_filename in qti_files_to_remove:
+                        qti_file_path = non_cc_dir / qti_filename
+                        if qti_file_path.exists():
+                            qti_file_path.unlink()
+                            print(f"Removed QTI file: {qti_filename}")
+                    # Remove from tracking
+                    del self.quiz_qti_files[quiz_id]
+                else:
+                    # Fallback to old method for backward compatibility
+                    qti_files_to_remove = list(non_cc_dir.glob(f"*{quiz_id}*.xml.qti"))
+                    
+                    # Also check for QTI files that contain the quiz title (for orphaned files)
+                    for qti_file in non_cc_dir.glob("*.xml.qti"):
+                        try:
+                            with open(qti_file, 'r', encoding='utf-8') as f:
+                                content = f.read()
+                                if quiz_to_delete['title'] in content and qti_file not in qti_files_to_remove:
+                                    qti_files_to_remove.append(qti_file)
+                        except:
+                            pass  # Skip files that can't be read
+                    
+                    for qti_file in qti_files_to_remove:
+                        qti_file.unlink()
+                        print(f"Removed QTI file: {qti_file.name}")
         
         # Update cartridge state
         self._update_cartridge_state()
@@ -1475,6 +1486,10 @@ class CartridgeGenerator:
         quiz_dir = output_path / quiz['identifier']
         quiz_dir.mkdir(parents=True, exist_ok=True)
         
+        # Store QTI file IDs for this quiz to track them for deletion
+        if not hasattr(self, 'quiz_qti_files'):
+            self.quiz_qti_files = {}
+        
         # Create assessment_meta.xml
         meta_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <quiz identifier="{quiz['identifier']}" xmlns="http://canvas.instructure.com/xsd/cccv1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://canvas.instructure.com/xsd/cccv1p0 https://canvas.instructure.com/xsd/cccv1p0.xsd">
@@ -1633,18 +1648,15 @@ class CartridgeGenerator:
         with open(quiz_dir / "assessment_qti.xml", 'w', encoding='utf-8') as f:
             f.write(qti_content)
         
-        # Create QTI file in non_cc_assessments
-        qti_file_id = f"g{uuid.uuid4().hex}"
+        # Create QTI file in non_cc_assessments - only create one file per quiz
         qti_path = output_path / "non_cc_assessments" / f"{quiz['identifier']}.xml.qti"
         qti_path.parent.mkdir(parents=True, exist_ok=True)
         
         with open(qti_path, 'w', encoding='utf-8') as f:
             f.write(qti_content)
         
-        # Create additional QTI file
-        additional_qti_path = output_path / "non_cc_assessments" / f"{qti_file_id}.xml.qti"
-        with open(additional_qti_path, 'w', encoding='utf-8') as f:
-            f.write(qti_content)
+        # Track QTI files for this quiz (only one now)
+        self.quiz_qti_files[quiz['identifier']] = [f"{quiz['identifier']}.xml.qti"]
     
     def _create_announcement_files(self, output_path, announcement):
         """Create announcement and discussion topic files"""
@@ -1871,52 +1883,44 @@ def main():
     print("Adding module...")
     module_id_test1 = generator.add_module("module1", position=1, published=True)
 
-    #print("Adding module...")
-    #module_id_test2 = generator.add_module("test2", position=2, published=True)
-
-    #print("Adding module...")
-    #module_id_test3 = generator.add_module("test3", position=3, published=True)
-
-    #selecting module 1,2, and 3
     selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
-    #selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test2")]).identifier.item()
-    #selected_module_3_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "test3")]).identifier.item()
+
+    #section1
+    generator.add_wiki_page_to_module(selected_module_1_id, "test_page", page_content="haha", published=True, position=None)
+    generator.add_assignment_to_module(selected_module_1_id, "assignment_title", assignment_content="test", points=100, published=True, position=None)
+    generator.add_quiz_to_module(selected_module_1_id, "quiz_title", quiz_description="test", points=1, published=True, position=None)
+    generator.add_discussion_to_module(selected_module_1_id, "title", "dy", published=True, position=None)
+    generator.add_file_to_module(selected_module_1_id, "filename", "file_content", position=None)
     
-    # Add discussion to selected existing module
-    #print("Adding discussion to existing module...")
-    generator.add_discussion_to_module(selected_module_1_id, "1_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
-    #generator.add_discussion_to_module(selected_module_1_id, "2_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
+    #section2
+    generator.add_wiki_page_to_module(selected_module_1_id, "test_page2", page_content="haha", published=True, position=None)
+    generator.add_assignment_to_module(selected_module_1_id, "assignment_title2", assignment_content="test", points=100, published=True, position=None)
+    generator.add_quiz_to_module(selected_module_1_id, "quiz_title2", quiz_description="test", points=1, published=True, position=None)
+    generator.add_discussion_to_module(selected_module_1_id, "title2", "dy", published=True, position=None)
+    generator.add_file_to_module(selected_module_1_id, "filename2", "file_content", position=None)
 
-    # selecting discussion by resource and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "1_Discussion")]).identifier.item()
-    print(f"Discussion ID to delete: {selected_discussion}")
-
-    # delete discussion by id
+    # Wiki pages - select by type and title
+    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page")]).identifier.item()
+    # Assignments - select by type and title  
+    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title")]).identifier.item()
+    # Quizzes - select by type and title
+    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title")]).iloc[0]['identifier']
+    # Files - select by type and href (file path)
+    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename")]).identifier.item()
+    # Discussions - select by type and title
+    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()
+    
+    # Delete wiki page
+    generator.delete_wiki_page_by_id(selected_wiki)
+    # Delete assignment  
+    generator.delete_assignment_by_id(selected_assignment)
+    # Delete quiz
+    generator.delete_quiz_by_id(selected_quiz)
+    # Delete file
+    generator.delete_file_by_id(selected_file)
+    # Delete discussion
     generator.delete_discussion_by_id(selected_discussion)
     
-
-    # select file by href
-    #selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/module_file.txt")]).identifier.item()
-    #print(f"File ID to delete: {selected_file}")
-
-    # delete file by id
-    #generator.delete_file_by_id(selected_file)
-    #generator.add_discussion_to_module(selected_module_1_id, "Module 1 Discussion", "<p>placeholder</p>", published=True)
-    #generator.add_discussion_to_module(selected_module_2_id, "Module 2 Discussion", "<p>placeholder</p>", published=True)
-
-    #selected_discussion = generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "init_quiz_1")]
-
-    '''
-    # isolate quiz id (use the main quiz identifier, not assessment_meta)
-    quiz_matches = generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "init_quiz_1")]
-    print(f"Found quiz matches: {len(quiz_matches)}")
-    print(quiz_matches[['type', 'title', 'identifier']].to_string())
-    selected_quiz = quiz_matches.iloc[0]['identifier']  # Take the first match
-    print(f"Quiz ID to delete: {selected_quiz}")
-    # delete quiz by id
-    generator.delete_quiz_by_id(selected_quiz)
-    '''
-
 
     #zip the cartridge
     shutil.make_archive('./generated_cartridge','zip','./generated_cartridge')
