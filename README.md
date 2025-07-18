@@ -43,23 +43,53 @@ All module-based functions now support an optional `position` parameter:
 
 **Examples:**
 ```python
-  # Create generator
-  generator = CartridgeGenerator(args.title, args.code)
-  
-  # Create base cartridge
-  print(f"Creating base cartridge: {args.output_dir}")
-  generator.create_base_cartridge(args.output_dir)
-  
-  # Add modules
-  print("Adding module...")
-  module_id_test1 = generator.add_module("module1", position=1, published=True)
+    # Create generator
+    generator = CartridgeGenerator(args.title, args.code)
+    
+    # Create base cartridge
+    print(f"Creating base cartridge: {args.output_dir}")
+    generator.create_base_cartridge(args.output_dir)
+    
+    # Add modules
+    print("Adding module...")
+    module_id_test1 = generator.add_module("module1", position=1, published=True)
 
-  #selecting module 1
-  selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
-  
-  # Add discussion to selected existing module
-  #print("Adding discussion to existing module...")
-  generator.add_discussion_to_module(selected_module_1_id, "1_Discussion", "<p>Let's discuss the topics from module 1</p>", published=True)
+    selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
+
+    #adding content into module
+    generator.add_wiki_page_to_module(selected_module_1_id, "test_page 1", page_content="haha", published=True, position=None)
+    generator.add_assignment_to_module(selected_module_1_id, "assignment_title", assignment_content="test", points=100, published=True, position=None)
+    generator.add_quiz_to_module(selected_module_1_id, "quiz_title", quiz_description="test", points=1, published=True, position=None)
+    generator.add_discussion_to_module(selected_module_1_id, "title", "dy", published=True, position=None)
+    generator.add_file_to_module(selected_module_1_id, "filename", "file_content", position=None)
+    
+    generator.add_wiki_page_to_module(selected_module_1_id, "test_page2", page_content="haha", published=True, position=None)
+    generator.add_assignment_to_module(selected_module_1_id, "assignment_title2", assignment_content="test", points=100, published=True, position=None)
+    generator.add_quiz_to_module(selected_module_1_id, "quiz_title2", quiz_description="test", points=1, published=True, position=None)
+    generator.add_discussion_to_module(selected_module_1_id, "title2", "dy", published=True, position=None)
+    generator.add_file_to_module(selected_module_1_id, "filename2", "file_content", position=None)
+
+    # Wiki pages - select by type and title
+    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page2")]).identifier.item()
+    # Assignments - select by type and title  
+    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title2")]).identifier.item()
+    # Quizzes - select by type and title
+    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title2")]).iloc[0]['identifier']
+    # Files - select by type and href (file path)
+    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename2")]).identifier.item()
+    # Discussions - select by type and title
+    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title2")]).identifier.item()
+
+    # Delete wiki page
+    generator.delete_wiki_page_by_id(selected_wiki)
+    # Delete assignment  
+    generator.delete_assignment_by_id(selected_assignment)
+    # Delete quiz
+    generator.delete_quiz_by_id(selected_quiz)
+    # Delete file
+    generator.delete_file_by_id(selected_file)
+    # Delete discussion
+    generator.delete_discussion_by_id(selected_discussion)
 ```
 
 ### Other Features
@@ -85,7 +115,7 @@ selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator
 selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_name")]).identifier.item()
 
 # Quizzes - select by type and title
-selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_name")]).identifier.item()
+selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title2")]).iloc[0]['identifier']
 
 # Files - select by type and href (file path)
 selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename.txt")]).identifier.item()
