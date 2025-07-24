@@ -789,6 +789,642 @@ class CartridgeGenerator:
         print(f"Module '{module_to_delete['title']}' (ID: {module_id}) and all its contents have been deleted")
         return True
     
+    def rename_module(self, module_id, new_title):
+        """Rename a module by its identifier, keeping everything else the same"""
+        # Find the module in our internal list
+        module_to_rename = None
+        for module in self.modules:
+            if module['identifier'] == module_id:
+                module_to_rename = module
+                break
+        
+        if not module_to_rename:
+            raise ValueError(f"Module with identifier {module_id} not found")
+        
+        # Store old title for comparison
+        old_title = module_to_rename['title']
+        
+        # Check if title is actually changing
+        if new_title == old_title:
+            print(f"Module '{old_title}' (ID: {module_id}) - no change needed, title is already '{new_title}'")
+            return True
+        
+        # Update the module title in the internal modules list
+        module_to_rename['title'] = new_title
+        
+        # Update the module title in the organization items
+        for org_module in self.organization_items:
+            if org_module['identifier'] == module_id:
+                org_module['title'] = new_title
+                break
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        print(f"Module renamed: '{old_title}' → '{new_title}' (ID: {module_id})")
+        return True
+    
+    def update_wiki(self, wiki_id, page_title=None, page_content=None, published=None, position=None):
+        """Update a wiki page's title, content, published status, and/or position by its identifier"""
+        # Find the wiki page in our internal list
+        wiki_page = None
+        for page in self.wiki_pages:
+            if page['identifier'] == wiki_id or page['resource_id'] == wiki_id:
+                wiki_page = page
+                break
+        
+        if not wiki_page:
+            raise ValueError(f"Wiki page with identifier {wiki_id} not found")
+        
+        # Store old values for comparison
+        old_title = wiki_page['title']
+        old_content = wiki_page['content']
+        old_published = wiki_page['workflow_state'] == 'published'
+        old_position = None
+        
+        # Find the wiki page's position in modules if it exists
+        for module in self.modules:
+            for item in module['items']:
+                if item['identifierref'] == wiki_page['resource_id']:
+                    old_position = item['position']
+                    break
+        
+        # Update the wiki page properties
+        if page_title is not None:
+            wiki_page['title'] = page_title
+            # Update filename to match new title
+            wiki_page['filename'] = f"wiki_content/{page_title.lower().replace(' ', '-').replace('_', '-')}.html"
+        
+        if page_content is not None:
+            wiki_page['content'] = page_content
+        
+        if published is not None:
+            wiki_page['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update position if specified and wiki page is part of a module
+        if position is not None and old_position is not None:
+            # Find the module containing this wiki page
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == wiki_page['resource_id']:
+                        # Remove item from current position
+                        module['items'].remove(item)
+                        
+                        # Adjust positions of items after the removed item
+                        for remaining_item in module['items']:
+                            if remaining_item['position'] > old_position:
+                                remaining_item['position'] -= 1
+                        
+                        # Clamp new position to valid range
+                        min_position = 1
+                        max_position = len(module['items']) + 1
+                        new_position = max(min_position, min(position, max_position))
+                        
+                        # Adjust positions of existing items if inserting at specific position
+                        for existing_item in module['items']:
+                            if existing_item['position'] >= new_position:
+                                existing_item['position'] += 1
+                        
+                        # Set new position and re-add item
+                        item['position'] = new_position
+                        module['items'].append(item)
+                        
+                        # Also update organization items
+                        for org_module in self.organization_items:
+                            if org_module['identifier'] == module['identifier']:
+                                for org_item in org_module['items']:
+                                    if org_item['identifierref'] == wiki_page['resource_id']:
+                                        org_item['position'] = new_position
+                                        break
+                        break
+        
+        # Update references in modules and organization items
+        if page_title is not None and page_title != old_title:
+            # Update module items
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == wiki_page['resource_id']:
+                        item['title'] = page_title
+                        if published is not None:
+                            item['workflow_state'] = 'published' if published else 'unpublished'
+            
+            # Update organization items
+            for org_module in self.organization_items:
+                for item in org_module['items']:
+                    if item['identifierref'] == wiki_page['resource_id']:
+                        item['title'] = page_title
+        elif published is not None:
+            # Update workflow state in modules if only published status changed
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == wiki_page['resource_id']:
+                        item['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        # Build update message
+        updates = []
+        if page_title is not None and page_title != old_title:
+            updates.append(f"title: '{old_title}' → '{page_title}'")
+        if page_content is not None and page_content != old_content:
+            updates.append(f"content updated")
+        if published is not None and published != old_published:
+            updates.append(f"published: {old_published} → {published}")
+        if position is not None and position != old_position:
+            if old_position is not None:
+                updates.append(f"position: {old_position} → {position}")
+            else:
+                updates.append(f"position: not in module → {position} (ignored - not in module)")
+        
+        if updates:
+            update_msg = ", ".join(updates)
+            print(f"Wiki page '{wiki_page['title']}' (ID: {wiki_id}) updated: {update_msg}")
+        else:
+            print(f"Wiki page '{wiki_page['title']}' (ID: {wiki_id}) - no changes made")
+        
+        return True
+    
+    def update_assignment(self, assignment_id, assignment_title=None, assignment_content=None, points=None, published=None, position=None):
+        """Update an assignment's title, content, points, published status, and/or position by its identifier"""
+        # Find the assignment in our internal list
+        assignment = None
+        for assign in self.assignments:
+            if assign['identifier'] == assignment_id:
+                assignment = assign
+                break
+        
+        if not assignment:
+            raise ValueError(f"Assignment with identifier {assignment_id} not found")
+        
+        # Store old values for comparison
+        old_title = assignment['title']
+        old_content = assignment['content']
+        old_points = assignment['points_possible']
+        old_published = assignment['workflow_state'] == 'published'
+        old_position = None
+        
+        # Find the assignment's position in modules if it exists
+        for module in self.modules:
+            for item in module['items']:
+                if item['identifierref'] == assignment_id:
+                    old_position = item['position']
+                    break
+        
+        # Update the assignment properties
+        if assignment_title is not None:
+            assignment['title'] = assignment_title
+        
+        if assignment_content is not None:
+            assignment['content'] = assignment_content
+        
+        if points is not None:
+            assignment['points_possible'] = points
+        
+        if published is not None:
+            assignment['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update position if specified and assignment is part of a module
+        if position is not None and old_position is not None:
+            # Find the module containing this assignment
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == assignment_id:
+                        # Remove item from current position
+                        module['items'].remove(item)
+                        
+                        # Adjust positions of items after the removed item
+                        for remaining_item in module['items']:
+                            if remaining_item['position'] > old_position:
+                                remaining_item['position'] -= 1
+                        
+                        # Clamp new position to valid range
+                        min_position = 1
+                        max_position = len(module['items']) + 1
+                        new_position = max(min_position, min(position, max_position))
+                        
+                        # Adjust positions of existing items if inserting at specific position
+                        for existing_item in module['items']:
+                            if existing_item['position'] >= new_position:
+                                existing_item['position'] += 1
+                        
+                        # Set new position and re-add item
+                        item['position'] = new_position
+                        module['items'].append(item)
+                        
+                        # Also update organization items
+                        for org_module in self.organization_items:
+                            if org_module['identifier'] == module['identifier']:
+                                for org_item in org_module['items']:
+                                    if org_item['identifierref'] == assignment_id:
+                                        org_item['position'] = new_position
+                                        break
+                        break
+        
+        # Update references in modules and organization items
+        if assignment_title is not None and assignment_title != old_title:
+            # Update module items
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == assignment_id:
+                        item['title'] = assignment_title
+                        if published is not None:
+                            item['workflow_state'] = 'published' if published else 'unpublished'
+            
+            # Update organization items
+            for org_module in self.organization_items:
+                for item in org_module['items']:
+                    if item['identifierref'] == assignment_id:
+                        item['title'] = assignment_title
+        elif published is not None:
+            # Update workflow state in modules if only published status changed
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == assignment_id:
+                        item['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        # Build update message
+        updates = []
+        if assignment_title is not None and assignment_title != old_title:
+            updates.append(f"title: '{old_title}' → '{assignment_title}'")
+        if assignment_content is not None and assignment_content != old_content:
+            updates.append(f"content updated")
+        if points is not None and points != old_points:
+            updates.append(f"points: {old_points} → {points}")
+        if published is not None and published != old_published:
+            updates.append(f"published: {old_published} → {published}")
+        if position is not None and position != old_position:
+            if old_position is not None:
+                updates.append(f"position: {old_position} → {position}")
+            else:
+                updates.append(f"position: not in module → {position} (ignored - not in module)")
+        
+        if updates:
+            update_msg = ", ".join(updates)
+            print(f"Assignment '{assignment['title']}' (ID: {assignment_id}) updated: {update_msg}")
+        else:
+            print(f"Assignment '{assignment['title']}' (ID: {assignment_id}) - no changes made")
+        
+        return True
+    
+    def update_quiz(self, quiz_id, quiz_title=None, quiz_description=None, points=None, published=None, position=None):
+        """Update a quiz's title, description, points, published status, and/or position by its identifier"""
+        # Find the quiz in our internal list
+        quiz = None
+        for q in self.quizzes:
+            if q['identifier'] == quiz_id:
+                quiz = q
+                break
+        
+        if not quiz:
+            raise ValueError(f"Quiz with identifier {quiz_id} not found")
+        
+        # Store old values for comparison
+        old_title = quiz['title']
+        old_description = quiz['description']
+        old_points = quiz['points_possible']
+        old_published = quiz['workflow_state'] == 'published'
+        old_position = None
+        
+        # Find the quiz's position in modules if it exists
+        for module in self.modules:
+            for item in module['items']:
+                if item['identifierref'] == quiz_id:
+                    old_position = item['position']
+                    break
+        
+        # Update the quiz properties
+        if quiz_title is not None:
+            quiz['title'] = quiz_title
+        
+        if quiz_description is not None:
+            quiz['description'] = quiz_description
+        
+        if points is not None:
+            quiz['points_possible'] = points
+        
+        if published is not None:
+            quiz['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update position if specified and quiz is part of a module
+        if position is not None and old_position is not None:
+            # Find the module containing this quiz
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == quiz_id:
+                        # Remove item from current position
+                        module['items'].remove(item)
+                        
+                        # Adjust positions of items after the removed item
+                        for remaining_item in module['items']:
+                            if remaining_item['position'] > old_position:
+                                remaining_item['position'] -= 1
+                        
+                        # Clamp new position to valid range
+                        min_position = 1
+                        max_position = len(module['items']) + 1
+                        new_position = max(min_position, min(position, max_position))
+                        
+                        # Adjust positions of existing items if inserting at specific position
+                        for existing_item in module['items']:
+                            if existing_item['position'] >= new_position:
+                                existing_item['position'] += 1
+                        
+                        # Set new position and re-add item
+                        item['position'] = new_position
+                        module['items'].append(item)
+                        
+                        # Also update organization items
+                        for org_module in self.organization_items:
+                            if org_module['identifier'] == module['identifier']:
+                                for org_item in org_module['items']:
+                                    if org_item['identifierref'] == quiz_id:
+                                        org_item['position'] = new_position
+                                        break
+                        break
+        
+        # Update references in modules and organization items
+        if quiz_title is not None and quiz_title != old_title:
+            # Update module items
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == quiz_id:
+                        item['title'] = quiz_title
+                        if published is not None:
+                            item['workflow_state'] = 'published' if published else 'unpublished'
+            
+            # Update organization items
+            for org_module in self.organization_items:
+                for item in org_module['items']:
+                    if item['identifierref'] == quiz_id:
+                        item['title'] = quiz_title
+        elif published is not None:
+            # Update workflow state in modules if only published status changed
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == quiz_id:
+                        item['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        # Build update message
+        updates = []
+        if quiz_title is not None and quiz_title != old_title:
+            updates.append(f"title: '{old_title}' → '{quiz_title}'")
+        if quiz_description is not None and quiz_description != old_description:
+            updates.append(f"description updated")
+        if points is not None and points != old_points:
+            updates.append(f"points: {old_points} → {points}")
+        if published is not None and published != old_published:
+            updates.append(f"published: {old_published} → {published}")
+        if position is not None and position != old_position:
+            if old_position is not None:
+                updates.append(f"position: {old_position} → {position}")
+            else:
+                updates.append(f"position: not in module → {position} (ignored - not in module)")
+        
+        if updates:
+            update_msg = ", ".join(updates)
+            print(f"Quiz '{quiz['title']}' (ID: {quiz_id}) updated: {update_msg}")
+        else:
+            print(f"Quiz '{quiz['title']}' (ID: {quiz_id}) - no changes made")
+        
+        return True
+    
+    def update_discussion(self, discussion_id, title=None, body=None, published=None, position=None):
+        """Update a discussion's title, body, published status, and/or position by its identifier"""
+        # Find the discussion in our internal list (discussions are stored in announcements)
+        discussion = None
+        for disc in self.announcements:
+            if disc['topic_id'] == discussion_id:
+                discussion = disc
+                break
+        
+        if not discussion:
+            raise ValueError(f"Discussion with identifier {discussion_id} not found")
+        
+        # Store old values for comparison
+        old_title = discussion['title']
+        old_body = discussion.get('body', discussion.get('content', ''))
+        old_published = discussion['workflow_state'] == 'active'
+        old_position = None
+        
+        # Find the discussion's position in modules if it exists
+        for module in self.modules:
+            for item in module['items']:
+                if item['identifierref'] == discussion_id:
+                    old_position = item['position']
+                    break
+        
+        # Update the discussion properties
+        if title is not None:
+            discussion['title'] = title
+        
+        if body is not None:
+            # Handle both 'body' and 'content' fields for compatibility
+            if 'body' in discussion:
+                discussion['body'] = body
+            else:
+                discussion['content'] = body
+        
+        if published is not None:
+            discussion['workflow_state'] = 'active' if published else 'unpublished'
+        
+        # Update position if specified and discussion is part of a module
+        if position is not None and old_position is not None:
+            # Find the module containing this discussion
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == discussion_id:
+                        # Remove item from current position
+                        module['items'].remove(item)
+                        
+                        # Adjust positions of items after the removed item
+                        for remaining_item in module['items']:
+                            if remaining_item['position'] > old_position:
+                                remaining_item['position'] -= 1
+                        
+                        # Clamp new position to valid range
+                        min_position = 1
+                        max_position = len(module['items']) + 1
+                        new_position = max(min_position, min(position, max_position))
+                        
+                        # Adjust positions of existing items if inserting at specific position
+                        for existing_item in module['items']:
+                            if existing_item['position'] >= new_position:
+                                existing_item['position'] += 1
+                        
+                        # Set new position and re-add item
+                        item['position'] = new_position
+                        module['items'].append(item)
+                        
+                        # Also update organization items
+                        for org_module in self.organization_items:
+                            if org_module['identifier'] == module['identifier']:
+                                for org_item in org_module['items']:
+                                    if org_item['identifierref'] == discussion_id:
+                                        org_item['position'] = new_position
+                                        break
+                        break
+        
+        # Update references in modules and organization items
+        if title is not None and title != old_title:
+            # Update module items
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == discussion_id:
+                        item['title'] = title
+                        if published is not None:
+                            item['workflow_state'] = 'published' if published else 'unpublished'
+            
+            # Update organization items
+            for org_module in self.organization_items:
+                for item in org_module['items']:
+                    if item['identifierref'] == discussion_id:
+                        item['title'] = title
+        elif published is not None:
+            # Update workflow state in modules if only published status changed
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == discussion_id:
+                        item['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        # Build update message
+        updates = []
+        if title is not None and title != old_title:
+            updates.append(f"title: '{old_title}' → '{title}'")
+        if body is not None and body != old_body:
+            updates.append(f"body updated")
+        if published is not None and published != old_published:
+            updates.append(f"published: {old_published} → {published}")
+        if position is not None and position != old_position:
+            if old_position is not None:
+                updates.append(f"position: {old_position} → {position}")
+            else:
+                updates.append(f"position: not in module → {position} (ignored - not in module)")
+        
+        if updates:
+            update_msg = ", ".join(updates)
+            print(f"Discussion '{discussion['title']}' (ID: {discussion_id}) updated: {update_msg}")
+        else:
+            print(f"Discussion '{discussion['title']}' (ID: {discussion_id}) - no changes made")
+        
+        return True
+    
+    def update_file(self, file_id, filename=None, file_content=None, position=None):
+        """Update a file's filename, content, and/or position by its identifier"""
+        # Find the file in our internal list
+        file_info = None
+        for file_obj in self.files:
+            if file_obj['identifier'] == file_id:
+                file_info = file_obj
+                break
+        
+        if not file_info:
+            raise ValueError(f"File with identifier {file_id} not found")
+        
+        # Store old values for comparison
+        old_filename = file_info['filename']
+        old_content = file_info['content']
+        old_position = None
+        
+        # Find the file's position in modules if it exists
+        for module in self.modules:
+            for item in module['items']:
+                if item['identifierref'] == file_id:
+                    old_position = item['position']
+                    break
+        
+        # Update the file properties
+        if filename is not None:
+            file_info['filename'] = filename
+            # Update path to match new filename
+            file_info['path'] = f"web_resources/{filename}"
+        
+        if file_content is not None:
+            file_info['content'] = file_content
+        
+        # Update filename references in modules and organization items
+        if filename is not None and filename != old_filename:
+            # Update module items
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == file_id:
+                        item['title'] = filename
+        
+            # Update organization items
+            for org_module in self.organization_items:
+                for item in org_module['items']:
+                    if item['identifierref'] == file_id:
+                        item['title'] = filename
+        
+        # Update position if specified
+        if position is not None and old_position is not None:
+            # Find the module containing this file
+            for module in self.modules:
+                for item in module['items']:
+                    if item['identifierref'] == file_id:
+                        # Remove item from current position
+                        module['items'].remove(item)
+                        
+                        # Adjust positions of items after the removed item
+                        for remaining_item in module['items']:
+                            if remaining_item['position'] > old_position:
+                                remaining_item['position'] -= 1
+                        
+                        # Clamp new position to valid range
+                        min_position = 1
+                        max_position = len(module['items']) + 1
+                        new_position = max(min_position, min(position, max_position))
+                        
+                        # Adjust positions of existing items if inserting at specific position
+                        for existing_item in module['items']:
+                            if existing_item['position'] >= new_position:
+                                existing_item['position'] += 1
+                        
+                        # Set new position and re-add item
+                        item['position'] = new_position
+                        module['items'].append(item)
+                        
+                        # Also update organization items
+                        for org_module in self.organization_items:
+                            if org_module['identifier'] == module['identifier']:
+                                for org_item in org_module['items']:
+                                    if org_item['identifierref'] == file_id:
+                                        org_item['position'] = new_position
+                                        break
+                        break
+        
+        # Update cartridge state to regenerate files
+        self._update_cartridge_state()
+        
+        # Build update message
+        updates = []
+        if filename is not None and filename != old_filename:
+            updates.append(f"filename: '{old_filename}' → '{filename}'")
+        if file_content is not None and file_content != old_content:
+            updates.append(f"content updated")
+        if position is not None and position != old_position:
+            if old_position is not None:
+                updates.append(f"position: {old_position} → {position}")
+            else:
+                updates.append(f"position: not in module → {position} (ignored - not in module)")
+        
+        if updates:
+            update_msg = ", ".join(updates)
+            print(f"File '{file_info['filename']}' (ID: {file_id}) updated: {update_msg}")
+        else:
+            print(f"File '{file_info['filename']}' (ID: {file_id}) - no changes made")
+        
+        return True
+    
     def add_assignment_to_module(self, module_id, assignment_title, assignment_content="", points=100, published=True, position=None):
         """Add an assignment to a specific module using actual module identifier from DataFrame"""
         assignment_id = f"g{uuid.uuid4().hex}"
@@ -1218,6 +1854,676 @@ class CartridgeGenerator:
         self._update_cartridge_state()
         
         return page_id
+    
+    def copy_wiki_page(self, wiki_page_id, module_id=None):
+        """Copy a wiki page to another module or as standalone by providing the wiki page id and optional module id"""
+        # Find the original wiki page
+        original_page = None
+        for page in self.wiki_pages:
+            if page['identifier'] == wiki_page_id or page['resource_id'] == wiki_page_id:
+                original_page = page
+                break
+        
+        if not original_page:
+            raise ValueError(f"Wiki page with identifier {wiki_page_id} not found")
+        
+        # Generate new IDs for the copy
+        new_page_id = f"g{uuid.uuid4().hex}"
+        new_resource_id = f"g{uuid.uuid4().hex}"
+        
+        # Create copy with new title to indicate it's a copy
+        copy_title = f"{original_page['title']} (Copy)"
+        
+        if module_id is None:
+            # Add as standalone wiki page (similar to add_wiki_page_standalone)
+            wiki_page_copy = {
+                'identifier': new_page_id,
+                'resource_id': new_resource_id,
+                'title': copy_title,
+                'content': original_page['content'],
+                'workflow_state': original_page['workflow_state'],
+                'filename': f"wiki_content/{copy_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            }
+            self.wiki_pages.append(wiki_page_copy)
+            
+            # Add to resources (but not to organization structure)
+            self.resources.append({
+                'identifier': new_resource_id,
+                'type': 'webcontent',
+                'href': wiki_page_copy['filename']
+            })
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_page_id
+        else:
+            # Add to specific module (similar to add_wiki_page_to_module)
+            item_id = f"g{uuid.uuid4().hex}"
+            
+            # Find the module in both internal list and verify it exists
+            target_module = None
+            for module in self.modules:
+                if module['identifier'] == module_id:
+                    target_module = module
+                    break
+            
+            if not target_module:
+                raise ValueError(f"Module with identifier {module_id} not found")
+            
+            # Determine position for the new item
+            item_position = len(target_module['items']) + 1
+            
+            # Create module item
+            item = {
+                'identifier': item_id,
+                'title': copy_title,
+                'content_type': 'WikiPage',
+                'workflow_state': original_page['workflow_state'],
+                'identifierref': new_resource_id,
+                'position': item_position
+            }
+            target_module['items'].append(item)
+            
+            # Store wiki page info
+            wiki_page_copy = {
+                'identifier': new_page_id,
+                'resource_id': new_resource_id,
+                'title': copy_title,
+                'content': original_page['content'],
+                'workflow_state': original_page['workflow_state'],
+                'filename': f"wiki_content/{copy_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            }
+            self.wiki_pages.append(wiki_page_copy)
+            
+            # Add to resources
+            self.resources.append({
+                'identifier': new_resource_id,
+                'type': 'webcontent',
+                'href': wiki_page_copy['filename']
+            })
+            
+            # Add to organization structure
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                org_item = {
+                    'identifier': item_id,
+                    'title': copy_title,
+                    'identifierref': new_resource_id,
+                    'position': item_position
+                }
+                org_module['items'].append(org_item)
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_page_id
+    
+    def copy_assignment(self, assignment_id, module_id=None):
+        """Copy an assignment to another module or as standalone by providing the assignment id and optional module id"""
+        # Find the original assignment
+        original_assignment = None
+        for assignment in self.assignments:
+            if assignment['identifier'] == assignment_id:
+                original_assignment = assignment
+                break
+        
+        if not original_assignment:
+            raise ValueError(f"Assignment with identifier {assignment_id} not found")
+        
+        # Generate new ID for the copy
+        new_assignment_id = f"g{uuid.uuid4().hex}"
+        
+        # Create copy with new title to indicate it's a copy
+        copy_title = f"{original_assignment['title']} (Copy)"
+        
+        if module_id is None:
+            # Add as standalone assignment (similar to add_assignment_standalone)
+            assignment_copy = {
+                'identifier': new_assignment_id,
+                'title': copy_title,
+                'content': original_assignment['content'],
+                'points_possible': original_assignment['points_possible'],
+                'workflow_state': original_assignment['workflow_state'],
+                'assignment_group_id': self.assignment_group_id,
+                'position': len(self.assignments) + 1
+            }
+            self.assignments.append(assignment_copy)
+            
+            # Add to resources (but not to organization structure)
+            self.resources.append({
+                'identifier': new_assignment_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_assignment_id}/my-first-assignment.html"
+            })
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_assignment_id
+        else:
+            # Add to specific module (similar to add_assignment_to_module)
+            item_id = f"g{uuid.uuid4().hex}"
+            
+            # Find the module in both internal list and verify it exists
+            target_module = None
+            for module in self.modules:
+                if module['identifier'] == module_id:
+                    target_module = module
+                    break
+            
+            if not target_module:
+                # If not found in internal list, check if it exists in current DataFrame
+                if self.current_df is not None:
+                    module_exists = not self.current_df[(self.current_df['type'] == 'module') & 
+                                                       (self.current_df['identifier'] == module_id)].empty
+                    if module_exists:
+                        # Get module title from DataFrame to create new internal module entry
+                        module_title = self.current_df[(self.current_df['type'] == 'module') & 
+                                                      (self.current_df['identifier'] == module_id)]['title'].iloc[0]
+                        # Create internal module entry
+                        target_module = {
+                            'identifier': module_id,
+                            'title': module_title,
+                            'position': len(self.modules) + 1,
+                            'workflow_state': 'unpublished',
+                            'items': []
+                        }
+                        self.modules.append(target_module)
+                        
+                        # Add to organization structure
+                        self.organization_items.append({
+                            'identifier': module_id,
+                            'title': module_title,
+                            'type': 'module',
+                            'items': []
+                        })
+                    else:
+                        raise ValueError(f"Module with identifier {module_id} not found in current cartridge state")
+                else:
+                    raise ValueError(f"Module with identifier {module_id} not found")
+            
+            # Determine position for the new item
+            item_position = len(target_module['items']) + 1
+            
+            # Create module item
+            item = {
+                'identifier': item_id,
+                'title': copy_title,
+                'content_type': 'Assignment',
+                'workflow_state': original_assignment['workflow_state'],
+                'identifierref': new_assignment_id,
+                'position': item_position
+            }
+            target_module['items'].append(item)
+            
+            # Store assignment info
+            assignment_copy = {
+                'identifier': new_assignment_id,
+                'title': copy_title,
+                'content': original_assignment['content'],
+                'points_possible': original_assignment['points_possible'],
+                'workflow_state': original_assignment['workflow_state'],
+                'assignment_group_id': self.assignment_group_id,
+                'position': len(self.assignments) + 1
+            }
+            self.assignments.append(assignment_copy)
+            
+            # Add to resources
+            self.resources.append({
+                'identifier': new_assignment_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_assignment_id}/my-first-assignment.html"
+            })
+            
+            # Add to organization structure
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                org_item = {
+                    'identifier': item_id,
+                    'title': copy_title,
+                    'identifierref': new_assignment_id,
+                    'position': item_position
+                }
+                org_module['items'].append(org_item)
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_assignment_id
+    
+    def copy_quiz(self, quiz_id, module_id=None):
+        """Copy a quiz to another module or as standalone by providing the quiz id and optional module id"""
+        # Find the original quiz
+        original_quiz = None
+        for quiz in self.quizzes:
+            if quiz['identifier'] == quiz_id:
+                original_quiz = quiz
+                break
+        
+        if not original_quiz:
+            raise ValueError(f"Quiz with identifier {quiz_id} not found")
+        
+        # Generate new IDs for the copy (quizzes need multiple IDs)
+        new_quiz_id = f"g{uuid.uuid4().hex}"
+        new_assignment_id = f"g{uuid.uuid4().hex}"
+        new_resource_id = f"g{uuid.uuid4().hex}"
+        new_question_id = f"g{uuid.uuid4().hex}"
+        new_assessment_question_id = f"g{uuid.uuid4().hex}"
+        
+        # Create copy with new title to indicate it's a copy
+        copy_title = f"{original_quiz['title']} (Copy)"
+        
+        if module_id is None:
+            # Add as standalone quiz (similar to add_quiz_standalone)
+            quiz_copy = {
+                'identifier': new_quiz_id,
+                'title': copy_title,
+                'description': original_quiz['description'],
+                'points_possible': original_quiz['points_possible'],
+                'workflow_state': original_quiz['workflow_state'],
+                'assignment_id': new_assignment_id,
+                'assignment_group_id': self.assignment_group_id,
+                'position': len(self.quizzes) + 1,
+                'question_id': new_question_id,
+                'assessment_question_id': new_assessment_question_id
+            }
+            self.quizzes.append(quiz_copy)
+            
+            # Add to resources (but not to organization structure)
+            self.resources.append({
+                'identifier': new_quiz_id,
+                'type': 'imsqti_xmlv1p2/imscc_xmlv1p1/assessment',
+                'href': f"{new_quiz_id}/assessment_qti.xml",
+                'dependency': new_resource_id
+            })
+            
+            self.resources.append({
+                'identifier': new_resource_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_quiz_id}/assessment_meta.xml"
+            })
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_quiz_id
+        else:
+            # Add to specific module (similar to add_quiz_to_module)
+            item_id = f"g{uuid.uuid4().hex}"
+            
+            # Find the module in both internal list and verify it exists
+            target_module = None
+            for module in self.modules:
+                if module['identifier'] == module_id:
+                    target_module = module
+                    break
+            
+            if not target_module:
+                # If not found in internal list, check if it exists in current DataFrame
+                if self.current_df is not None:
+                    module_exists = not self.current_df[(self.current_df['type'] == 'module') & 
+                                                       (self.current_df['identifier'] == module_id)].empty
+                    if module_exists:
+                        # Get module title from DataFrame to create new internal module entry
+                        module_title = self.current_df[(self.current_df['type'] == 'module') & 
+                                                      (self.current_df['identifier'] == module_id)]['title'].iloc[0]
+                        # Create internal module entry
+                        target_module = {
+                            'identifier': module_id,
+                            'title': module_title,
+                            'position': len(self.modules) + 1,
+                            'workflow_state': 'unpublished',
+                            'items': []
+                        }
+                        self.modules.append(target_module)
+                        
+                        # Add to organization structure
+                        self.organization_items.append({
+                            'identifier': module_id,
+                            'title': module_title,
+                            'type': 'module',
+                            'items': []
+                        })
+                    else:
+                        raise ValueError(f"Module with identifier {module_id} not found in current cartridge state")
+                else:
+                    raise ValueError(f"Module with identifier {module_id} not found")
+            
+            # Determine position for the new item
+            item_position = len(target_module['items']) + 1
+            
+            # Create module item
+            item = {
+                'identifier': item_id,
+                'title': copy_title,
+                'content_type': 'Quizzes::Quiz',
+                'workflow_state': original_quiz['workflow_state'],
+                'identifierref': new_quiz_id,
+                'position': item_position
+            }
+            target_module['items'].append(item)
+            
+            # Store quiz info
+            quiz_copy = {
+                'identifier': new_quiz_id,
+                'title': copy_title,
+                'description': original_quiz['description'],
+                'points_possible': original_quiz['points_possible'],
+                'workflow_state': original_quiz['workflow_state'],
+                'assignment_id': new_assignment_id,
+                'assignment_group_id': self.assignment_group_id,
+                'position': len(self.quizzes) + 1,
+                'question_id': new_question_id,
+                'assessment_question_id': new_assessment_question_id
+            }
+            self.quizzes.append(quiz_copy)
+            
+            # Add to resources
+            self.resources.append({
+                'identifier': new_quiz_id,
+                'type': 'imsqti_xmlv1p2/imscc_xmlv1p1/assessment',
+                'href': f"{new_quiz_id}/assessment_qti.xml",
+                'dependency': new_resource_id
+            })
+            
+            self.resources.append({
+                'identifier': new_resource_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_quiz_id}/assessment_meta.xml"
+            })
+            
+            # Add to organization structure
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                org_item = {
+                    'identifier': item_id,
+                    'title': copy_title,
+                    'identifierref': new_quiz_id,
+                    'position': item_position
+                }
+                org_module['items'].append(org_item)
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_quiz_id
+    
+    def copy_discussion(self, discussion_id, module_id=None):
+        """Copy a discussion to another module or as standalone by providing the discussion id and optional module id"""
+        # Find the original discussion (stored in announcements list)
+        original_discussion = None
+        for discussion in self.announcements:
+            if discussion['topic_id'] == discussion_id or discussion['meta_id'] == discussion_id:
+                original_discussion = discussion
+                break
+        
+        if not original_discussion:
+            raise ValueError(f"Discussion with identifier {discussion_id} not found")
+        
+        # Generate new IDs for the copy
+        new_topic_id = f"g{uuid.uuid4().hex}"
+        new_meta_id = f"g{uuid.uuid4().hex}"
+        
+        # Create copy with new title to indicate it's a copy
+        copy_title = f"{original_discussion['title']} (Copy)"
+        
+        if module_id is None:
+            # Add as standalone discussion (similar to add_discussion_standalone)
+            discussion_copy = {
+                'topic_id': new_topic_id,
+                'meta_id': new_meta_id,
+                'title': copy_title,
+                'body': original_discussion['body'],
+                'workflow_state': original_discussion['workflow_state']
+            }
+            self.announcements.append(discussion_copy)
+            
+            # Add to resources (but not to organization structure)
+            self.resources.append({
+                'identifier': new_topic_id,
+                'type': 'imsdt_xmlv1p1',
+                'href': f"{new_topic_id}.xml",
+                'dependency': new_meta_id
+            })
+            
+            self.resources.append({
+                'identifier': new_meta_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_meta_id}.xml"
+            })
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_topic_id
+        else:
+            # Add to specific module (similar to add_discussion_to_module)
+            item_id = f"g{uuid.uuid4().hex}"
+            
+            # Find the module in both internal list and verify it exists
+            target_module = None
+            for module in self.modules:
+                if module['identifier'] == module_id:
+                    target_module = module
+                    break
+            
+            if not target_module:
+                # If not found in internal list, check if it exists in current DataFrame
+                if self.current_df is not None:
+                    module_exists = not self.current_df[(self.current_df['type'] == 'module') & 
+                                                       (self.current_df['identifier'] == module_id)].empty
+                    if module_exists:
+                        # Get module title from DataFrame to create new internal module entry
+                        module_title = self.current_df[(self.current_df['type'] == 'module') & 
+                                                      (self.current_df['identifier'] == module_id)]['title'].iloc[0]
+                        # Create internal module entry
+                        target_module = {
+                            'identifier': module_id,
+                            'title': module_title,
+                            'position': len(self.modules) + 1,
+                            'workflow_state': 'unpublished',
+                            'items': []
+                        }
+                        self.modules.append(target_module)
+                        
+                        # Add to organization structure
+                        self.organization_items.append({
+                            'identifier': module_id,
+                            'title': module_title,
+                            'type': 'module',
+                            'items': []
+                        })
+                    else:
+                        raise ValueError(f"Module with identifier {module_id} not found in current cartridge state")
+                else:
+                    raise ValueError(f"Module with identifier {module_id} not found")
+            
+            # Determine position for the new item
+            item_position = len(target_module['items']) + 1
+            
+            # Create module item
+            item = {
+                'identifier': item_id,
+                'title': copy_title,
+                'content_type': 'DiscussionTopic',
+                'workflow_state': original_discussion['workflow_state'],
+                'identifierref': new_topic_id,
+                'position': item_position
+            }
+            target_module['items'].append(item)
+            
+            # Store discussion info
+            discussion_copy = {
+                'topic_id': new_topic_id,
+                'meta_id': new_meta_id,
+                'title': copy_title,
+                'body': original_discussion['body'],
+                'workflow_state': original_discussion['workflow_state']
+            }
+            self.announcements.append(discussion_copy)
+            
+            # Add to resources
+            self.resources.append({
+                'identifier': new_topic_id,
+                'type': 'imsdt_xmlv1p1',
+                'href': f"{new_topic_id}.xml",
+                'dependency': new_meta_id
+            })
+            
+            self.resources.append({
+                'identifier': new_meta_id,
+                'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
+                'href': f"{new_meta_id}.xml"
+            })
+            
+            # Add to organization structure
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                org_item = {
+                    'identifier': item_id,
+                    'title': copy_title,
+                    'identifierref': new_topic_id,
+                    'position': item_position
+                }
+                org_module['items'].append(org_item)
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_topic_id
+    
+    def copy_file(self, file_id, module_id=None):
+        """Copy a file to another module or as standalone by providing the file id and optional module id"""
+        # Find the original file
+        original_file = None
+        for file_info in self.files:
+            if file_info['identifier'] == file_id:
+                original_file = file_info
+                break
+        
+        if not original_file:
+            raise ValueError(f"File with identifier {file_id} not found")
+        
+        # Generate new ID for the copy
+        new_file_id = f"g{uuid.uuid4().hex}"
+        
+        # Create copy with new filename to indicate it's a copy
+        original_filename = original_file['filename']
+        filename_parts = original_filename.rsplit('.', 1)
+        if len(filename_parts) == 2:
+            copy_filename = f"{filename_parts[0]} (Copy).{filename_parts[1]}"
+        else:
+            copy_filename = f"{original_filename} (Copy)"
+        
+        if module_id is None:
+            # Add as standalone file (similar to add_file_standalone)
+            file_copy = {
+                'identifier': new_file_id,
+                'filename': copy_filename,
+                'content': original_file['content'],
+                'path': f"web_resources/{copy_filename}"
+            }
+            self.files.append(file_copy)
+            
+            # Add to resources (but not to organization structure)
+            self.resources.append({
+                'identifier': new_file_id,
+                'type': 'webcontent',
+                'href': f"web_resources/{copy_filename}"
+            })
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_file_id
+        else:
+            # Add to specific module (similar to add_file_to_module)
+            item_id = f"g{uuid.uuid4().hex}"
+            
+            # Find the module in both internal list and verify it exists
+            target_module = None
+            for module in self.modules:
+                if module['identifier'] == module_id:
+                    target_module = module
+                    break
+            
+            if not target_module:
+                # If not found in internal list, check if it exists in current DataFrame
+                if self.current_df is not None:
+                    module_exists = not self.current_df[(self.current_df['type'] == 'module') & 
+                                                       (self.current_df['identifier'] == module_id)].empty
+                    if module_exists:
+                        # Get module title from DataFrame to create new internal module entry
+                        module_title = self.current_df[(self.current_df['type'] == 'module') & 
+                                                      (self.current_df['identifier'] == module_id)]['title'].iloc[0]
+                        # Create internal module entry
+                        target_module = {
+                            'identifier': module_id,
+                            'title': module_title,
+                            'position': len(self.modules) + 1,
+                            'workflow_state': 'unpublished',
+                            'items': []
+                        }
+                        self.modules.append(target_module)
+                        
+                        # Add to organization structure
+                        self.organization_items.append({
+                            'identifier': module_id,
+                            'title': module_title,
+                            'type': 'module',
+                            'items': []
+                        })
+                    else:
+                        raise ValueError(f"Module with identifier {module_id} not found in current cartridge state")
+                else:
+                    raise ValueError(f"Module with identifier {module_id} not found")
+            
+            # Determine position for the new item
+            item_position = len(target_module['items']) + 1
+            
+            # Create module item
+            item = {
+                'identifier': item_id,
+                'title': copy_filename,
+                'content_type': 'Attachment',
+                'workflow_state': 'published',
+                'identifierref': new_file_id,
+                'position': item_position
+            }
+            target_module['items'].append(item)
+            
+            # Store file info
+            file_copy = {
+                'identifier': new_file_id,
+                'filename': copy_filename,
+                'content': original_file['content'],
+                'path': f"web_resources/{copy_filename}"
+            }
+            self.files.append(file_copy)
+            
+            # Add to resources
+            self.resources.append({
+                'identifier': new_file_id,
+                'type': 'webcontent',
+                'href': f"web_resources/{copy_filename}"
+            })
+            
+            # Add to organization structure
+            org_module = next((m for m in self.organization_items if m['identifier'] == module_id), None)
+            if org_module:
+                org_item = {
+                    'identifier': item_id,
+                    'title': copy_filename,
+                    'identifierref': new_file_id,
+                    'position': item_position
+                }
+                org_module['items'].append(org_item)
+            
+            # Update cartridge state
+            self._update_cartridge_state()
+            
+            return new_file_id
     
     def add_discussion_standalone(self, title, body, published=True):
         """Add a standalone discussion (not attached to any module)"""
@@ -1939,19 +3245,41 @@ def main():
 
     selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
 
-    #section1
+    #adding set 1 content 
     generator.add_wiki_page_to_module(selected_module_1_id, "test_page", page_content="haha", published=True, position=None)
     generator.add_assignment_to_module(selected_module_1_id, "assignment_title", assignment_content="test", points=100, published=True, position=None)
     generator.add_quiz_to_module(selected_module_1_id, "quiz_title", quiz_description="test", points=1, published=True, position=None)
     generator.add_discussion_to_module(selected_module_1_id, "title", "dy", published=True, position=None)
     generator.add_file_to_module(selected_module_1_id, "filename", "file_content", position=None)
     
-    #section2
+    #adding set 2 content 
     generator.add_wiki_page_to_module(selected_module_1_id, "test_page2", page_content="haha", published=True, position=None)
     generator.add_assignment_to_module(selected_module_1_id, "assignment_title2", assignment_content="test", points=100, published=True, position=None)
     generator.add_quiz_to_module(selected_module_1_id, "quiz_title2", quiz_description="test", points=1, published=True, position=None)
     generator.add_discussion_to_module(selected_module_1_id, "title2", "dy", published=True, position=None)
     generator.add_file_to_module(selected_module_1_id, "filename2", "file_content", position=None)
+
+    # Wiki pages - select by type and title
+    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page2")]).identifier.item()
+    # Assignments - select by type and title  
+    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title2")]).identifier.item()
+    # Quizzes - select by type and title
+    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title2")]).iloc[0]['identifier']
+    # Files - select by type and href (file path)
+    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename2")]).identifier.item()
+    # Discussions - select by type and title
+    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title2")]).identifier.item()
+
+    # Delete wiki page
+    generator.delete_wiki_page_by_id(selected_wiki)
+    # Delete assignment  
+    generator.delete_assignment_by_id(selected_assignment)
+    # Delete quiz
+    generator.delete_quiz_by_id(selected_quiz)
+    # Delete file
+    generator.delete_file_by_id(selected_file)
+    # Delete discussion
+    generator.delete_discussion_by_id(selected_discussion)
 
     # Wiki pages - select by type and title
     selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page")]).identifier.item()
@@ -1962,22 +3290,40 @@ def main():
     # Files - select by type and href (file path)
     selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename")]).identifier.item()
     # Discussions - select by type and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()
+    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()    
     
-    # Delete wiki page
-    #generator.delete_wiki_page_by_id(selected_wiki)
-    # Delete assignment  
-    #generator.delete_assignment_by_id(selected_assignment)
-    # Delete quiz
-    #generator.delete_quiz_by_id(selected_quiz)
-    # Delete file
-    #generator.delete_file_by_id(selected_file)
-    # Delete discussion
-    #generator.delete_discussion_by_id(selected_discussion)
+    # Update wiki page
+    generator.update_wiki(selected_wiki, page_title="New Title", page_content="New content", published=True)
+    # Update assignment
+    generator.update_assignment(selected_assignment, assignment_title="New Title", assignment_content="New content", points=150, published=True)
+    # Update quiz
+    generator.update_quiz(selected_quiz, quiz_title="New Title", quiz_description="New description", points=5, published=True)
+    # Update discussion
+    generator.update_discussion(selected_discussion, title="New Title", body="New content", published=True)
+    # Update file
+    generator.update_file(selected_file, filename="new_file.txt", file_content="New content")
 
-    generator.delete_module_by_id(selected_module_1_id)
+    print("Adding new module...")
+    module_id_test2 = generator.add_module("module2", position=2, published=True)   
+    
+    #select_module
+    selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module2")]).identifier.item()
+    
+    #copy wiki page to new module
+    generator.copy_wiki_page(selected_wiki, selected_module_2_id)
+    #copy assignment to new module
+    generator.copy_assignment(selected_assignment, selected_module_2_id)
+    #copy quiz to new module
+    generator.copy_quiz(selected_quiz, selected_module_2_id)
+    #copy discussion to new module
+    generator.copy_discussion(selected_discussion, selected_module_2_id)
+    #copy file to new module
+    generator.copy_file(selected_file, selected_module_2_id)
+
+
     
 
+    
     #zip the cartridge
     shutil.make_archive('./generated_cartridge','zip','./generated_cartridge')
     # Save current state to HTML
