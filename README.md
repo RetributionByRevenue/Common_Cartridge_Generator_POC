@@ -98,6 +98,9 @@ This tool generates Canvas Common Cartridge packages with various content types.
     #copy file to new module
     generator.copy_file(selected_file, selected_module_2_id)
 ```
+# Canvas Import Result
+<img src="https://raw.githubusercontent.com/RetributionByRevenue/Common_Cartridge_Generator_POC/refs/heads/main/Screenshot_2025-07-24_14-30-26.png">
+
 # Canvas Common Cartridge Methods Documentation
 
 ## CartridgeGenerator.py Methods
