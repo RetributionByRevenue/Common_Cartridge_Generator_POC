@@ -11,11 +11,14 @@ USAGE EXAMPLES:
     # Generate with custom course title and code
     python cartridge_generator.py generated_course --title "Introduction to Python" --code "CS101"
     
-    # Generate and compare with existing cartridge (commented out in main)
-    python cartridge_generator.py test_cartridge --title "Test Course" --code "TEST" --compare produced_cartridge
+    # Scan existing cartridge and load into DataFrame
+    python cartridge_generator.py generated_cartridge --scan
     
-    # Real-world example
+    # Real-world example - generate new
     python cartridge_generator.py biology_101 --title "Biology Fundamentals" --code "BIO101"
+    
+    # Real-world example - scan existing
+    python cartridge_generator.py existing_course_export --scan
 
 WHAT IT CREATES:
     - Complete cartridge directory structure with all Canvas XML files
@@ -35,14 +38,16 @@ from datetime import datetime
 import argparse
 import filecmp
 import shutil
+import random
 from cartridge_replicator import scan_cartridge
 from _cartridge_deletion_mixin import CartridgeDeletionMixin
 from _cartridge_update_mixin import CartridgeUpdateMixin
 from _cartridge_add_mixin import CartridgeAddMixin
 from _cartridge_standalone_add_mixin import CartridgeStandaloneAddMixin
 from _cartridge_copy_mixin import CartridgeCopyMixin
+from _cartridge_hydrator_mixin import CartridgeHydratorMixin
 
-class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, CartridgeAddMixin, CartridgeStandaloneAddMixin, CartridgeCopyMixin):
+class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, CartridgeAddMixin, CartridgeStandaloneAddMixin, CartridgeCopyMixin, CartridgeHydratorMixin):
     def __init__(self, course_title="Generated Course", course_code="GEN101"):
         self.course_title = course_title
         self.course_code = course_code
@@ -79,6 +84,15 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
         if self.output_dir:
             self.write_cartridge_files(self.output_dir)
             self.current_df = scan_cartridge(self.output_dir)
+            
+            # Remove duplicates based on identifier and type
+            if self.current_df is not None and not self.current_df.empty:
+                # Keep only the last occurrence of each identifier+type combination
+                self.current_df = self.current_df.drop_duplicates(
+                    subset=['identifier', 'type'], 
+                    keep='last'
+                ).reset_index(drop=True)
+            
             print(f"Cartridge state updated. Found {len(self.current_df)} components.")
         
     def create_base_cartridge(self, output_dir):
@@ -352,13 +366,19 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
     <items>
 """
             
-            for item in sorted(module['items'], key=lambda x: x['position']):
+            for item in sorted(module['items'], key=lambda x: x.get('position', 1)):
+                content_type = item.get('content_type', 'WikiPage')
+                workflow_state = item.get('workflow_state', 'published')
+                title = item.get('title', 'Untitled')
+                identifierref = item.get('identifierref', '')
+                position = item.get('position', 1)
+                
                 content += f"""      <item identifier="{item['identifier']}">
-        <content_type>{item['content_type']}</content_type>
-        <workflow_state>{item['workflow_state']}</workflow_state>
-        <title>{item['title']}</title>
-        <identifierref>{item['identifierref']}</identifierref>
-        <position>{item['position']}</position>
+        <content_type>{content_type}</content_type>
+        <workflow_state>{workflow_state}</workflow_state>
+        <title>{title}</title>
+        <identifierref>{identifierref}</identifierref>
+        <position>{position}</position>
         <new_tab/>
         <indent>0</indent>
         <link_settings_json>null</link_settings_json>
@@ -752,17 +772,25 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
       <item identifier="LearningModules">
 """
         
-        # Add organization items (modules)
+        # Add unique organization items (modules)
+        seen_org_items = set()
         for org_item in self.organization_items:
-            content += f"""        <item identifier="{org_item['identifier']}">
+            if org_item['identifier'] not in seen_org_items:
+                seen_org_items.add(org_item['identifier'])
+                content += f"""        <item identifier="{org_item['identifier']}">
           <title>{org_item['title']}</title>
 """
-            for item in sorted(org_item['items'], key=lambda x: x['position']):
-                content += f"""          <item identifier="{item['identifier']}" identifierref="{item['identifierref']}">
-            <title>{item['title']}</title>
+                # Add unique items within this module
+                seen_items = set()
+                for item in sorted(org_item['items'], key=lambda x: x.get('position', 1)):
+                    item_key = (item['identifier'], item.get('identifierref', ''))
+                    if item_key not in seen_items:
+                        seen_items.add(item_key)
+                        content += f"""          <item identifier="{item['identifier']}" identifierref="{item.get('identifierref', '')}">
+            <title>{item.get('title', 'Untitled')}</title>
           </item>
 """
-            content += """        </item>
+                content += """        </item>
 """
         
         content += """      </item>
@@ -771,7 +799,12 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
   <resources>
 """
         
-        # Add course settings resource
+        # Add unique resources (avoid duplicates)
+        seen_resources = set()
+        
+        # Add course settings resource first
+        course_settings_key = (self.course_id, "associatedcontent/imscc_xmlv1p1/learning-application-resource", "course_settings/canvas_export.txt")
+        seen_resources.add(course_settings_key)
         content += f"""    <resource identifier="{self.course_id}" type="associatedcontent/imscc_xmlv1p1/learning-application-resource" href="course_settings/canvas_export.txt">
       <file href="course_settings/course_settings.xml"/>
       <file href="course_settings/module_meta.xml"/>
@@ -784,36 +817,38 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
     </resource>
 """
         
-        # Add all other resources
         for resource in self.resources:
-            content += f"""    <resource identifier="{resource['identifier']}" type="{resource['type']}" href="{resource['href']}">
+            resource_key = (resource['identifier'], resource['type'], resource['href'])
+            if resource_key not in seen_resources:
+                seen_resources.add(resource_key)
+                content += f"""    <resource identifier="{resource['identifier']}" type="{resource['type']}" href="{resource['href']}">
       <file href="{resource['href']}"/>
 """
-            
-            # Add assignment settings files
-            if resource['type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource' and resource['href'].endswith('.html'):
-                assignment_id = resource['href'].split('/')[0]
-                content += f"""      <file href="{assignment_id}/assignment_settings.xml"/>
+                
+                # Add assignment settings files
+                if resource['type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource' and resource['href'].endswith('.html'):
+                    assignment_id = resource['href'].split('/')[0]
+                    content += f"""      <file href="{assignment_id}/assignment_settings.xml"/>
 """
-            
-            # Add quiz dependency files
-            if resource['type'] == 'imsqti_xmlv1p2/imscc_xmlv1p1/assessment':
-                quiz_id = resource['href'].split('/')[0]
-                content += f"""      <dependency identifierref="{resource['dependency']}"/>
+                
+                # Add quiz dependency files
+                if resource['type'] == 'imsqti_xmlv1p2/imscc_xmlv1p1/assessment':
+                    quiz_id = resource['href'].split('/')[0]
+                    content += f"""      <dependency identifierref="{resource['dependency']}"/>
 """
-            
-            # Add assessment meta files
-            if resource['type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource' and 'assessment_meta.xml' in resource['href']:
-                quiz_id = resource['href'].split('/')[0]
-                content += f"""      <file href="non_cc_assessments/{quiz_id}.xml.qti"/>
+                
+                # Add assessment meta files
+                if resource['type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource' and 'assessment_meta.xml' in resource['href']:
+                    quiz_id = resource['href'].split('/')[0]
+                    content += f"""      <file href="non_cc_assessments/{quiz_id}.xml.qti"/>
 """
-            
-            # Add announcement dependencies
-            if resource['type'] == 'imsdt_xmlv1p1':
-                content += f"""      <dependency identifierref="{resource['dependency']}"/>
+                
+                # Add announcement dependencies
+                if resource['type'] == 'imsdt_xmlv1p1':
+                    content += f"""      <dependency identifierref="{resource['dependency']}"/>
 """
-            
-            content += """    </resource>
+                
+                content += """    </resource>
 """
         
         content += """  </resources>
@@ -843,10 +878,11 @@ def count_files_and_lines(directory):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a Canvas Common Cartridge")
-    parser.add_argument("output_dir", help="Output directory for generated cartridge")
-    parser.add_argument("--title", default="Generated Course", help="Course title")
-    parser.add_argument("--code", default="GEN101", help="Course code")
+    parser = argparse.ArgumentParser(description="Generate or work with a Canvas Common Cartridge")
+    parser.add_argument("cartridge_dir", help="Cartridge directory (existing to scan, or new to generate)")
+    parser.add_argument("--title", default="Generated Course", help="Course title (only used when generating new cartridge)")
+    parser.add_argument("--code", default="GEN101", help="Course code (only used when generating new cartridge)")
+    parser.add_argument("--scan", action="store_true", help="Scan existing cartridge instead of generating new one")
     parser.add_argument("--compare", help="Directory to compare against (e.g., produced_cartridge)")
     
     args = parser.parse_args()
@@ -854,97 +890,60 @@ def main():
     # Create generator
     generator = CartridgeGenerator(args.title, args.code)
     
-    # Create base cartridge
-    print(f"Creating base cartridge: {args.output_dir}")
-    generator.create_base_cartridge(args.output_dir)
-    
-    # Add modules
-    print("Adding module...")
-    module_id_test1 = generator.add_module("module1", position=1, published=True)
+    # Determine mode: scan existing or create new
+    if args.scan:
+        print(f"Scanning existing cartridge: {args.cartridge_dir}")
+        if not generator.hydrate_from_existing_cartridge(args.cartridge_dir):
+            print("Failed to hydrate from existing cartridge")
+            return 1
+        
+        # Print summary of what was found
+        summary = generator.get_hydration_summary()
+        print(f"\nCartridge Summary:")
+        print(f"  Course: {summary['course_title']} ({summary['course_code']})")
+        print(f"  Total components: {summary['total_components']}")
+        print(f"  Modules: {summary['modules_count']}")
+        print(f"  Wiki pages: {summary['wiki_pages_count']}")
+        print(f"  Resources: {summary['resources_count']}")
+        print(f"  Component types: {summary['component_types']}")
+        
+        # Save current state to HTML for inspection
+        with open("scanned_cartridge_inspect.html", "w") as f:
+            f.write(generator.df.to_html())
+        print(f"\nDataFrame saved to scanned_cartridge_inspect.html for inspection")
+        
+    else:
+        # Create base cartridge and add initial module
+        print(f"Creating base cartridge: {args.cartridge_dir}")
+        generator.create_base_cartridge(args.cartridge_dir)
+        
+        # Add initial module (only when generating new cartridge)
+        print("Adding module...")
+        module_id_test1 = generator.add_module("module1", position=1, published=True)
 
-    selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
-
-    #adding set 1 content 
-    generator.add_wiki_page_to_module(selected_module_1_id, "test_page", page_content="haha", published=True, position=None)
-    generator.add_assignment_to_module(selected_module_1_id, "assignment_title", assignment_content="test", points=100, published=True, position=None)
-    generator.add_quiz_to_module(selected_module_1_id, "quiz_title", quiz_description="test", points=1, published=True, position=None)
-    generator.add_discussion_to_module(selected_module_1_id, "title", "dy", published=True, position=None)
-    generator.add_file_to_module(selected_module_1_id, "filename", "file_content", position=None)
-    
-    #adding set 2 content 
-    generator.add_wiki_page_to_module(selected_module_1_id, "test_page2", page_content="haha", published=True, position=None)
-    generator.add_assignment_to_module(selected_module_1_id, "assignment_title2", assignment_content="test", points=100, published=True, position=None)
-    generator.add_quiz_to_module(selected_module_1_id, "quiz_title2", quiz_description="test", points=1, published=True, position=None)
-    generator.add_discussion_to_module(selected_module_1_id, "title2", "dy", published=True, position=None)
-    generator.add_file_to_module(selected_module_1_id, "filename2", "file_content", position=None)
-
-    # Wiki pages - select by type and title
-    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page2")]).identifier.item()
-    # Assignments - select by type and title  
-    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title2")]).identifier.item()
-    # Quizzes - select by type and title
-    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title2")]).iloc[0]['identifier']
-    # Files - select by type and href (file path)
-    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename2")]).identifier.item()
-    # Discussions - select by type and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title2")]).identifier.item()
-
-    # Delete wiki page
-    generator.delete_wiki_page_by_id(selected_wiki)
-    # Delete assignment  
-    generator.delete_assignment_by_id(selected_assignment)
-    # Delete quiz
-    generator.delete_quiz_by_id(selected_quiz)
-    # Delete file
-    generator.delete_file_by_id(selected_file)
-    # Delete discussion
-    generator.delete_discussion_by_id(selected_discussion)
-
-    # Wiki pages - select by type and title
-    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page")]).identifier.item()
-    # Assignments - select by type and title  
-    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title")]).identifier.item()
-    # Quizzes - select by type and title
-    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title")]).iloc[0]['identifier']
-    # Files - select by type and href (file path)
-    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename")]).identifier.item()
-    # Discussions - select by type and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()    
-    
-    # Update wiki page
-    generator.update_wiki(selected_wiki, page_title="New Title", page_content="New content", published=True)
-    # Update assignment
-    generator.update_assignment(selected_assignment, assignment_title="New Title", assignment_content="New content", points=150, published=True)
-    # Update quiz
-    generator.update_quiz(selected_quiz, quiz_title="New Title", quiz_description="New description", points=5, published=True)
-    # Update discussion
-    generator.update_discussion(selected_discussion, title="New Title", body="New content", published=True)
-    # Update file
-    generator.update_file(selected_file, filename="new_file.txt", file_content="New content")
-
-    print("Adding new module...")
-    module_id_test2 = generator.add_module("module2", position=2, published=True)   
-    
-    #select_module
-    selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module2")]).identifier.item()
-    
-    #copy wiki page to new module
-    generator.copy_wiki_page(selected_wiki, selected_module_2_id)
-    #copy assignment to new module
-    generator.copy_assignment(selected_assignment, selected_module_2_id)
-    #copy quiz to new module
-    generator.copy_quiz(selected_quiz, selected_module_2_id)
-    #copy discussion to new module
-    generator.copy_discussion(selected_discussion, selected_module_2_id)
-    #copy file to new module
-    generator.copy_file(selected_file, selected_module_2_id)
-
-
-    
+    # Ensure module1 exists for both scan and generate modes
+    try:
+        selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
+        print(f"Found module1 with ID: {selected_module_1_id}")
+        
+        # Add wiki page with random title to module1
+        
+        generator.add_wiki_page_to_module(selected_module_1_id, str(random.randint(1000, 20000)), page_content="haha", published=True, position=None)
+        generator.add_assignment_to_module(selected_module_1_id, str(random.randint(1000, 20000)), assignment_content="test", points=100, published=True, position=None)
+        generator.add_quiz_to_module(selected_module_1_id, str(random.randint(1000, 20000)), quiz_description="test", points=1, published=True, position=None)
+        generator.add_discussion_to_module(selected_module_1_id, str(random.randint(1000, 20000)), "dy", published=True, position=None)
+        generator.add_file_to_module(selected_module_1_id, str(random.randint(1000, 20000)), "file_content", position=None)
+        
+    except (IndexError, ValueError) as e:
+        print(f"Error: Could not find module1 in the cartridge. Error: {e}")
+        if args.scan:
+            print("The scanned cartridge may not have a module named 'module1'")
+        return 1
 
     
     #zip the cartridge
-    shutil.make_archive('./generated_cartridge','zip','./generated_cartridge')
+    cartridge_name = Path(args.cartridge_dir).name
+    shutil.make_archive(f'./{cartridge_name}', 'zip', f'./{cartridge_name}')
     # Save current state to HTML
     with open("table_inspect.html", "w") as f:
         f.write(generator.df.to_html())
@@ -974,6 +973,11 @@ if __name__ == "__main__":
     main()
 
 # QUICK REFERENCE - COMMAND LINE EXAMPLES:
+# Generate new cartridge:
 # python cartridge_generator.py my_new_cartridge
 # python cartridge_generator.py generated_course --title "Introduction to Python" --code "CS101" 
 # python cartridge_generator.py biology_101 --title "Biology Fundamentals" --code "BIO101"
+#
+# Scan existing cartridge:
+# python cartridge_generator.py generated_cartridge --scan
+# python cartridge_generator.py existing_course_export --scan
