@@ -9,67 +9,40 @@ This tool generates Canvas Common Cartridge packages with various content types.
 ```
 
 **Examples:**
-```python
-    # Create generator
-    generator = CartridgeGenerator(args.title, args.code)
+```bash
+    #delete cartridge
+    rm -rf ./test_cartridge
     
-    # Create base cartridge
-    print(f"Creating base cartridge: {args.output_dir}")
-    generator.create_base_cartridge(args.output_dir)
+    #create cartridge
+    .venv/bin/python cartridge_cli.py create test_cartridge --title "Test Course" --code   "TEST101"
     
-    # Add modules
-    print("Adding module...")
-    module_id_test1 = generator.add_module("module1", position=1, published=True)
-
-    selected_module_1_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module1")]).identifier.item()
-
-    #adding set 1 content 
-    generator.add_wiki_page_to_module(selected_module_1_id, "test_page", page_content="haha", published=True, position=None)
-    generator.add_assignment_to_module(selected_module_1_id, "assignment_title", assignment_content="test", points=100, published=True, position=None)
-    generator.add_quiz_to_module(selected_module_1_id, "quiz_title", quiz_description="test", points=1, published=True, position=None)
-    generator.add_discussion_to_module(selected_module_1_id, "title", "dy", published=True, position=None)
-    generator.add_file_to_module(selected_module_1_id, "filename", "file_content", position=None)
+    #create module
+    .venv/bin/python cartridge_cli.py add-module test_cartridge --title "Week 1"   --position 1 --published true
     
-    #adding set 2 content 
-    generator.add_wiki_page_to_module(selected_module_1_id, "test_page2", page_content="haha", published=True, position=None)
-    generator.add_assignment_to_module(selected_module_1_id, "assignment_title2", assignment_content="test", points=100, published=True, position=None)
-    generator.add_quiz_to_module(selected_module_1_id, "quiz_title2", quiz_description="test", points=1, published=True, position=None)
-    generator.add_discussion_to_module(selected_module_1_id, "title2", "dy", published=True, position=None)
-    generator.add_file_to_module(selected_module_1_id, "filename2", "file_content", position=None)
-
-    # Wiki pages - select by type and title
-    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page2")]).identifier.item()
-    # Assignments - select by type and title  
-    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title2")]).identifier.item()
-    # Quizzes - select by type and title
-    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title2")]).iloc[0]['identifier']
-    # Files - select by type and href (file path)
-    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename2")]).identifier.item()
-    # Discussions - select by type and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title2")]).identifier.item()
-
-    # Delete wiki page
-    generator.delete_wiki_page_by_id(selected_wiki)
-    # Delete assignment  
-    generator.delete_assignment_by_id(selected_assignment)
-    # Delete quiz
-    generator.delete_quiz_by_id(selected_quiz)
-    # Delete file
-    generator.delete_file_by_id(selected_file)
-    # Delete discussion
-    generator.delete_discussion_by_id(selected_discussion)
-
-    # Wiki pages - select by type and title
-    selected_wiki = (generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == "test_page")]).identifier.item()
-    # Assignments - select by type and title  
-    selected_assignment = (generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == "assignment_title")]).identifier.item()
-    # Quizzes - select by type and title
-    selected_quiz = (generator.df[(generator.df["type"] == "qti_assessment") & (generator.df["title"] == "quiz_title")]).iloc[0]['identifier']
-    # Files - select by type and href (file path)
-    selected_file = (generator.df[(generator.df["type"] == "resource") & (generator.df["href"] == "web_resources/filename")]).identifier.item()
-    # Discussions - select by type and title
-    selected_discussion = (generator.df[(generator.df["type"] == "resource") & (generator.df["title"] == "title")]).identifier.item()    
+    #add and delete wiki page
+    .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "booga" --content "This is a test wiki page that we will delete."
+    .venv/bin/python cartridge_cli.py delete-wiki-page test_cartridge --title "booga"
     
+    #add and delete assignment
+    .venv/bin/python cartridge_cli.py add-assignment test_cartridge --title "Assignment 1" --content "First assignment" --points 50
+    .venv/bin/python cartridge_cli.py delete-assignment test_cartridge --title "Assignment 1" 
+    
+    #add and delete quiz
+    .venv/bin/python cartridge_cli.py add-quiz test_cartridge --title "Quiz 1" --description "First quiz" --points 20
+    .venv/bin/python cartridge_cli.py delete-quiz test_cartridge --title "Quiz 1"
+    
+    #add and delete assignment
+    .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "Module Discussion1" --description "" --body-content "What"
+    .venv/bin/python cartridge_cli.py delete-discussion test_cartridge --title "My Discussion Topic 1"
+    
+    #add and delete file
+    .venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document2.txt" --content "File content here"
+    .venv/bin/python cartridge_cli.py delete-file test_cartridge --filename "document2.txt"
+    
+    #zip the cartridge
+    .venv/bin/python cartridge_cli.py package test_cartridge
+
+    Left to Port:
     # Update wiki page
     generator.update_wiki(selected_wiki, page_title="New Title", page_content="New content", published=True)
     # Update assignment
@@ -80,12 +53,6 @@ This tool generates Canvas Common Cartridge packages with various content types.
     generator.update_discussion(selected_discussion, title="New Title", body="New content", published=True)
     # Update file
     generator.update_file(selected_file, filename="new_file.txt", file_content="New content")
-
-    print("Adding new module...")
-    module_id_test2 = generator.add_module("module2", position=2, published=True)   
-    
-    #select_module
-    selected_module_2_id = (generator.df[(generator.df["type"] == "module") & (generator.df["title"] == "module2")]).identifier.item()
     
     #copy wiki page to new module
     generator.copy_wiki_page(selected_wiki, selected_module_2_id)
