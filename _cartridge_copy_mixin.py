@@ -129,7 +129,6 @@ class CartridgeCopyMixin:
         
         # Create copy with new title to indicate it's a copy
         copy_title = f"{original_assignment['title']} (Copy)"
-        html_filename = f"g{uuid.uuid4().hex}.html"
         
         if module_id is None:
             # Add as standalone assignment (similar to add_assignment_standalone)
@@ -140,8 +139,7 @@ class CartridgeCopyMixin:
                 'points_possible': original_assignment['points_possible'],
                 'workflow_state': original_assignment['workflow_state'],
                 'assignment_group_id': self.assignment_group_id,
-                'position': len(self.assignments) + 1,
-                'html_filename': html_filename
+                'position': len(self.assignments) + 1
             }
             self.assignments.append(assignment_copy)
             
@@ -149,7 +147,7 @@ class CartridgeCopyMixin:
             self.resources.append({
                 'identifier': new_assignment_id,
                 'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
-                'href': f"{new_assignment_id}/{html_filename}"
+                'href': f"{new_assignment_id}/my-first-assignment.html"
             })
             
             # Update cartridge state
@@ -220,8 +218,7 @@ class CartridgeCopyMixin:
                 'points_possible': original_assignment['points_possible'],
                 'workflow_state': original_assignment['workflow_state'],
                 'assignment_group_id': self.assignment_group_id,
-                'position': len(self.assignments) + 1,
-                'html_filename': html_filename
+                'position': len(self.assignments) + 1
             }
             self.assignments.append(assignment_copy)
             
@@ -229,7 +226,7 @@ class CartridgeCopyMixin:
             self.resources.append({
                 'identifier': new_assignment_id,
                 'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
-                'href': f"{new_assignment_id}/{html_filename}"
+                'href': f"{new_assignment_id}/my-first-assignment.html"
             })
             
             # Add to organization structure
