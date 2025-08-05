@@ -843,7 +843,7 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
 """
                 
                 # Add announcement dependencies
-                if resource['type'] == 'imsdt_xmlv1p1':
+                if resource['type'] == 'imsdt_xmlv1p1' and 'dependency' in resource:
                     content += f"""      <dependency identifierref="{resource['dependency']}"/>
 """
                 

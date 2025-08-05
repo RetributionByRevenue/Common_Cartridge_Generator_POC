@@ -161,6 +161,7 @@ class CartridgeHydratorMixin:
         wiki_pages = self.current_df[self.current_df['type'] == 'wiki_page']
         for _, wiki_row in wiki_pages.iterrows():
             wiki_page = {
+                'identifier': wiki_row['identifier'],
                 'resource_id': wiki_row['identifier'],
                 'title': wiki_row['title'],
                 'filename': wiki_row['filename'],
@@ -169,7 +170,76 @@ class CartridgeHydratorMixin:
             }
             self.wiki_pages.append(wiki_page)
         
-        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages")
+        # Hydrate assignments
+        assignment_settings = self.current_df[self.current_df['type'] == 'assignment_settings']
+        
+        # Extract assignment_group_id from the first assignment if it exists
+        if not assignment_settings.empty:
+            first_assignment_xml = assignment_settings.iloc[0]['xml_content']
+            extracted_group_id = self._extract_assignment_group_id_from_xml(first_assignment_xml)
+            if extracted_group_id:
+                self.assignment_group_id = extracted_group_id
+        
+        for i, (_, assignment_row) in enumerate(assignment_settings.iterrows()):
+            assignment = {
+                'identifier': assignment_row['identifier'],
+                'title': assignment_row['title'],
+                'workflow_state': assignment_row['workflow_state'] or 'published',
+                'points_possible': self._extract_points_from_assignment_xml(assignment_row['xml_content']),
+                'content': self._extract_assignment_content(assignment_row['identifier']),
+                'assignment_group_id': self.assignment_group_id,
+                'position': i + 1
+            }
+            self.assignments.append(assignment)
+        
+        # Hydrate quizzes
+        assessment_meta = self.current_df[self.current_df['type'] == 'assessment_meta']
+        for i, (_, quiz_row) in enumerate(assessment_meta.iterrows()):
+            quiz = {
+                'identifier': quiz_row['identifier'],
+                'title': quiz_row['title'],
+                'workflow_state': quiz_row['workflow_state'] or 'published',
+                'points_possible': self._extract_points_from_quiz_xml(quiz_row['xml_content']),
+                'description': self._extract_description_from_quiz_xml(quiz_row['xml_content']),
+                'assignment_group_id': self.assignment_group_id,
+                'position': i + 1,
+                'assignment_id': f"a{quiz_row['identifier'][1:]}",  # Convert quiz ID to assignment ID format
+                'question_id': f"q{quiz_row['identifier'][1:]}",
+                'assessment_question_id': f"aq{quiz_row['identifier'][1:]}"
+            }
+            self.quizzes.append(quiz)
+        
+        # Hydrate discussions (stored in announcements list)
+        discussion_meta = self.current_df[self.current_df['type'] == 'discussion_topic_meta']
+        for _, discussion_row in discussion_meta.iterrows():
+            discussion = {
+                'topic_id': self._extract_topic_id_from_discussion_xml(discussion_row['xml_content']),
+                'meta_id': discussion_row['identifier'],
+                'title': discussion_row['title'],
+                'body': self._extract_discussion_content(discussion_row['identifier']),
+                'workflow_state': discussion_row['workflow_state'] or 'active'
+            }
+            self.announcements.append(discussion)
+        
+        # Hydrate files
+        web_files = self.current_df[self.current_df['type'] == 'web_resources_file']
+        for _, file_row in web_files.iterrows():
+            # Get the corresponding resource entry to find the identifier
+            file_resource = self.current_df[
+                (self.current_df['type'] == 'resource') & 
+                (self.current_df['href'] == file_row['href'])
+            ]
+            
+            if not file_resource.empty:
+                file_info = {
+                    'identifier': file_resource.iloc[0]['identifier'],
+                    'filename': file_row['title'] + '.txt' if '.' not in file_row['title'] else file_row['title'],
+                    'content': file_row['xml_content'] or '',
+                    'path': file_row['href']
+                }
+                self.files.append(file_info)
+        
+        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.assignments)} assignments, {len(self.quizzes)} quizzes, {len(self.announcements)} discussions, {len(self.files)} files")
     
     def _extract_content_from_html(self, html_content):
         """Extract body content from HTML"""
@@ -190,6 +260,105 @@ class CartridgeHydratorMixin:
             pass
         
         return html_content
+    
+    def _extract_points_from_assignment_xml(self, xml_content):
+        """Extract points possible from assignment XML"""
+        if not xml_content:
+            return 100
+        
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml_content)
+            points_elem = root.find('.//points_possible')
+            if points_elem is not None and points_elem.text:
+                return float(points_elem.text)
+        except (ET.ParseError, ValueError):
+            pass
+        
+        return 100
+    
+    def _extract_assignment_content(self, assignment_id):
+        """Extract assignment content from the assignment_content row"""
+        assignment_content = self.current_df[
+            (self.current_df['type'] == 'assignment_content') & 
+            (self.current_df['identifier'] == assignment_id)
+        ]
+        
+        if not assignment_content.empty:
+            return self._extract_content_from_html(assignment_content.iloc[0]['xml_content'])
+        
+        return ""
+    
+    def _extract_assignment_group_id_from_xml(self, xml_content):
+        """Extract assignment_group_identifierref from assignment XML"""
+        if not xml_content:
+            return None
+        
+        import re
+        match = re.search(r'<assignment_group_identifierref>([^<]+)</assignment_group_identifierref>', xml_content)
+        if match:
+            return match.group(1)
+        
+        return None
+    
+    def _extract_points_from_quiz_xml(self, xml_content):
+        """Extract points possible from quiz XML"""
+        if not xml_content:
+            return 10
+        
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml_content)
+            points_elem = root.find('.//points_possible')
+            if points_elem is not None and points_elem.text:
+                return int(float(points_elem.text))
+        except (ET.ParseError, ValueError):
+            pass
+        
+        return 10
+    
+    def _extract_description_from_quiz_xml(self, xml_content):
+        """Extract description from quiz XML"""
+        if not xml_content:
+            return ""
+        
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(xml_content)
+            desc_elem = root.find('.//description')
+            if desc_elem is not None and desc_elem.text:
+                # Decode HTML entities in the description
+                import html
+                return html.unescape(desc_elem.text)
+        except ET.ParseError:
+            pass
+        
+        return ""
+    
+    def _extract_topic_id_from_discussion_xml(self, xml_content):
+        """Extract topic_id from discussion XML"""
+        if not xml_content:
+            return None
+        
+        import re
+        # Use regex to extract topic_id since XML namespaces can complicate parsing
+        match = re.search(r'<topic_id>([^<]+)</topic_id>', xml_content)
+        if match:
+            return match.group(1)
+        
+        return None
+    
+    def _extract_discussion_content(self, discussion_id):
+        """Extract discussion content from the discussion_topic_content row"""
+        discussion_content = self.current_df[
+            (self.current_df['type'] == 'discussion_topic_content') & 
+            (self.current_df['filename'].str.contains(f'{discussion_id}', na=False))
+        ]
+        
+        if not discussion_content.empty:
+            return self._extract_content_from_html(discussion_content.iloc[0]['xml_content'])
+        
+        return ""
     
     def get_hydration_summary(self):
         """Get a summary of the hydrated cartridge"""
