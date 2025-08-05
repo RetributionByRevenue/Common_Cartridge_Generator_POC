@@ -61,7 +61,7 @@ def add_module(args):
 
 
 def add_wiki(args):
-    """Add a wiki page to a module in an existing cartridge"""
+    """Add a wiki page to a module or as standalone in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
@@ -74,37 +74,48 @@ def add_wiki(args):
         print("Failed to load existing cartridge")
         return 1
     
-    # Find module by title
-    try:
-        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
-        if module_row.empty:
-            print(f"Error: Module '{args.module}' not found in cartridge")
-            print("Available modules:")
-            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
-            for module in modules:
-                print(f"  - {module}")
+    # Check if module is specified
+    if hasattr(args, 'module') and args.module:
+        # Module-attached mode
+        try:
+            module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
+            if module_row.empty:
+                print(f"Error: Module '{args.module}' not found in cartridge")
+                print("Available modules:")
+                modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+                for module in modules:
+                    print(f"  - {module}")
+                return 1
+            
+            module_id = module_row.iloc[0]["identifier"]
+            
+        except Exception as e:
+            print(f"Error finding module: {e}")
             return 1
         
-        module_id = module_row.iloc[0]["identifier"]
+        # Add wiki page to module
+        print(f"Adding wiki page '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
+        generator.add_wiki_page_to_module(module_id, args.title, page_content=args.content, published=True, position=None)
         
-    except Exception as e:
-        print(f"Error finding module: {e}")
-        return 1
-    
-    # Add wiki page to module
-    print(f"Adding wiki page '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
-    generator.add_wiki_page_to_module(module_id, args.title, page_content=args.content, published=True, position=None)
-    
-    print(f"✓ Wiki page '{args.title}' added successfully")
-    print(f"  Module: {args.module}")
-    print(f"  Content length: {len(args.content)} characters")
-    print(f"  Total components: {len(generator.df)}")
+        print(f"✓ Wiki page '{args.title}' added successfully")
+        print(f"  Module: {args.module}")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
+    else:
+        # Standalone mode
+        print(f"Adding standalone wiki page '{args.title}' to cartridge '{args.cartridge_name}'")
+        generator.add_wiki_page_standalone(args.title, page_content=args.content, published=True)
+        
+        print(f"✓ Standalone wiki page '{args.title}' added successfully")
+        print(f"  Mode: Standalone (not attached to any module)")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
     
     return 0
 
 
 def add_assignment(args):
-    """Add an assignment to a module in an existing cartridge"""
+    """Add an assignment to a module or as standalone in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
@@ -117,38 +128,50 @@ def add_assignment(args):
         print("Failed to load existing cartridge")
         return 1
     
-    # Find module by title
-    try:
-        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
-        if module_row.empty:
-            print(f"Error: Module '{args.module}' not found in cartridge")
-            print("Available modules:")
-            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
-            for module in modules:
-                print(f"  - {module}")
+    # Check if module is specified
+    if hasattr(args, 'module') and args.module:
+        # Module-attached mode
+        try:
+            module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
+            if module_row.empty:
+                print(f"Error: Module '{args.module}' not found in cartridge")
+                print("Available modules:")
+                modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+                for module in modules:
+                    print(f"  - {module}")
+                return 1
+            
+            module_id = module_row.iloc[0]["identifier"]
+            
+        except Exception as e:
+            print(f"Error finding module: {e}")
             return 1
         
-        module_id = module_row.iloc[0]["identifier"]
+        # Add assignment to module
+        print(f"Adding assignment '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
+        generator.add_assignment_to_module(module_id, args.title, assignment_content=args.content, points=args.points, published=True, position=None)
         
-    except Exception as e:
-        print(f"Error finding module: {e}")
-        return 1
-    
-    # Add assignment to module
-    print(f"Adding assignment '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
-    generator.add_assignment_to_module(module_id, args.title, assignment_content=args.content, points=args.points, published=True, position=None)
-    
-    print(f"✓ Assignment '{args.title}' added successfully")
-    print(f"  Module: {args.module}")
-    print(f"  Points: {args.points}")
-    print(f"  Content length: {len(args.content)} characters")
-    print(f"  Total components: {len(generator.df)}")
+        print(f"✓ Assignment '{args.title}' added successfully")
+        print(f"  Module: {args.module}")
+        print(f"  Points: {args.points}")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
+    else:
+        # Standalone mode
+        print(f"Adding standalone assignment '{args.title}' to cartridge '{args.cartridge_name}'")
+        generator.add_assignment_standalone(args.title, assignment_content=args.content, points=args.points, published=True)
+        
+        print(f"✓ Standalone assignment '{args.title}' added successfully")
+        print(f"  Mode: Standalone (not attached to any module)")
+        print(f"  Points: {args.points}")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
     
     return 0
 
 
 def add_quiz(args):
-    """Add a quiz to a module in an existing cartridge"""
+    """Add a quiz to a module or as standalone in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
@@ -161,38 +184,50 @@ def add_quiz(args):
         print("Failed to load existing cartridge")
         return 1
     
-    # Find module by title
-    try:
-        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
-        if module_row.empty:
-            print(f"Error: Module '{args.module}' not found in cartridge")
-            print("Available modules:")
-            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
-            for module in modules:
-                print(f"  - {module}")
+    # Check if module is specified
+    if hasattr(args, 'module') and args.module:
+        # Module-attached mode
+        try:
+            module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
+            if module_row.empty:
+                print(f"Error: Module '{args.module}' not found in cartridge")
+                print("Available modules:")
+                modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+                for module in modules:
+                    print(f"  - {module}")
+                return 1
+            
+            module_id = module_row.iloc[0]["identifier"]
+            
+        except Exception as e:
+            print(f"Error finding module: {e}")
             return 1
         
-        module_id = module_row.iloc[0]["identifier"]
+        # Add quiz to module
+        print(f"Adding quiz '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
+        generator.add_quiz_to_module(module_id, args.title, quiz_description=args.description, points=args.points, published=True, position=None)
         
-    except Exception as e:
-        print(f"Error finding module: {e}")
-        return 1
-    
-    # Add quiz to module
-    print(f"Adding quiz '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
-    generator.add_quiz_to_module(module_id, args.title, quiz_description=args.description, points=args.points, published=True, position=None)
-    
-    print(f"✓ Quiz '{args.title}' added successfully")
-    print(f"  Module: {args.module}")
-    print(f"  Points: {args.points}")
-    print(f"  Description length: {len(args.description)} characters")
-    print(f"  Total components: {len(generator.df)}")
+        print(f"✓ Quiz '{args.title}' added successfully")
+        print(f"  Module: {args.module}")
+        print(f"  Points: {args.points}")
+        print(f"  Description length: {len(args.description)} characters")
+        print(f"  Total components: {len(generator.df)}")
+    else:
+        # Standalone mode
+        print(f"Adding standalone quiz '{args.title}' to cartridge '{args.cartridge_name}'")
+        generator.add_quiz_standalone(args.title, quiz_description=args.description, points=args.points, published=True)
+        
+        print(f"✓ Standalone quiz '{args.title}' added successfully")
+        print(f"  Mode: Standalone (not attached to any module)")
+        print(f"  Points: {args.points}")
+        print(f"  Description length: {len(args.description)} characters")
+        print(f"  Total components: {len(generator.df)}")
     
     return 0
 
 
 def add_discussion(args):
-    """Add a discussion to a module in an existing cartridge"""
+    """Add a discussion to a module or as standalone in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
@@ -205,37 +240,48 @@ def add_discussion(args):
         print("Failed to load existing cartridge")
         return 1
     
-    # Find module by title
-    try:
-        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
-        if module_row.empty:
-            print(f"Error: Module '{args.module}' not found in cartridge")
-            print("Available modules:")
-            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
-            for module in modules:
-                print(f"  - {module}")
+    # Check if module is specified
+    if hasattr(args, 'module') and args.module:
+        # Module-attached mode
+        try:
+            module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
+            if module_row.empty:
+                print(f"Error: Module '{args.module}' not found in cartridge")
+                print("Available modules:")
+                modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+                for module in modules:
+                    print(f"  - {module}")
+                return 1
+            
+            module_id = module_row.iloc[0]["identifier"]
+            
+        except Exception as e:
+            print(f"Error finding module: {e}")
             return 1
         
-        module_id = module_row.iloc[0]["identifier"]
+        # Add discussion to module
+        print(f"Adding discussion '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
+        generator.add_discussion_to_module(module_id, args.title, args.description, published=True, position=None)
         
-    except Exception as e:
-        print(f"Error finding module: {e}")
-        return 1
-    
-    # Add discussion to module
-    print(f"Adding discussion '{args.title}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
-    generator.add_discussion_to_module(module_id, args.title, args.description, published=True, position=None)
-    
-    print(f"✓ Discussion '{args.title}' added successfully")
-    print(f"  Module: {args.module}")
-    print(f"  Description length: {len(args.description)} characters")
-    print(f"  Total components: {len(generator.df)}")
+        print(f"✓ Discussion '{args.title}' added successfully")
+        print(f"  Module: {args.module}")
+        print(f"  Description length: {len(args.description)} characters")
+        print(f"  Total components: {len(generator.df)}")
+    else:
+        # Standalone mode
+        print(f"Adding standalone discussion '{args.title}' to cartridge '{args.cartridge_name}'")
+        generator.add_discussion_standalone(args.title, args.description, published=True)
+        
+        print(f"✓ Standalone discussion '{args.title}' added successfully")
+        print(f"  Mode: Standalone (not attached to any module)")
+        print(f"  Description length: {len(args.description)} characters")
+        print(f"  Total components: {len(generator.df)}")
     
     return 0
 
 
 def add_file(args):
-    """Add a file to a module in an existing cartridge"""
+    """Add a file to a module or as standalone in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
@@ -248,31 +294,42 @@ def add_file(args):
         print("Failed to load existing cartridge")
         return 1
     
-    # Find module by title
-    try:
-        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
-        if module_row.empty:
-            print(f"Error: Module '{args.module}' not found in cartridge")
-            print("Available modules:")
-            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
-            for module in modules:
-                print(f"  - {module}")
+    # Check if module is specified
+    if hasattr(args, 'module') and args.module:
+        # Module-attached mode
+        try:
+            module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.module)]
+            if module_row.empty:
+                print(f"Error: Module '{args.module}' not found in cartridge")
+                print("Available modules:")
+                modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+                for module in modules:
+                    print(f"  - {module}")
+                return 1
+            
+            module_id = module_row.iloc[0]["identifier"]
+            
+        except Exception as e:
+            print(f"Error finding module: {e}")
             return 1
         
-        module_id = module_row.iloc[0]["identifier"]
+        # Add file to module
+        print(f"Adding file '{args.filename}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
+        generator.add_file_to_module(module_id, args.filename, args.content, position=None)
         
-    except Exception as e:
-        print(f"Error finding module: {e}")
-        return 1
-    
-    # Add file to module
-    print(f"Adding file '{args.filename}' to module '{args.module}' in cartridge '{args.cartridge_name}'")
-    generator.add_file_to_module(module_id, args.filename, args.content, position=None)
-    
-    print(f"✓ File '{args.filename}' added successfully")
-    print(f"  Module: {args.module}")
-    print(f"  Content length: {len(args.content)} characters")
-    print(f"  Total components: {len(generator.df)}")
+        print(f"✓ File '{args.filename}' added successfully")
+        print(f"  Module: {args.module}")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
+    else:
+        # Standalone mode
+        print(f"Adding standalone file '{args.filename}' to cartridge '{args.cartridge_name}'")
+        generator.add_file_standalone(args.filename, args.content)
+        
+        print(f"✓ Standalone file '{args.filename}' added successfully")
+        print(f"  Mode: Standalone (not attached to any module)")
+        print(f"  Content length: {len(args.content)} characters")
+        print(f"  Total components: {len(generator.df)}")
     
     return 0
 
@@ -366,14 +423,14 @@ def main():
     # Add-wiki command
     wiki_parser = subparsers.add_parser('add-wiki', help='Add a wiki page to a module')
     wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
-    wiki_parser.add_argument('--module', required=True, help='Module title to add wiki page to')
+    wiki_parser.add_argument('--module', help='Module title to add wiki page to (optional - if not specified, creates standalone wiki page)')
     wiki_parser.add_argument('--title', required=True, help='Wiki page title')
     wiki_parser.add_argument('--content', required=True, help='Wiki page content')
     
     # Add-assignment command
     assignment_parser = subparsers.add_parser('add-assignment', help='Add an assignment to a module')
     assignment_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
-    assignment_parser.add_argument('--module', required=True, help='Module title to add assignment to')
+    assignment_parser.add_argument('--module', help='Module title to add assignment to (optional - if not specified, creates standalone assignment)')
     assignment_parser.add_argument('--title', required=True, help='Assignment title')
     assignment_parser.add_argument('--content', required=True, help='Assignment content/description')
     assignment_parser.add_argument('--points', type=int, default=100, help='Points possible (default: 100)')
@@ -381,7 +438,7 @@ def main():
     # Add-quiz command
     quiz_parser = subparsers.add_parser('add-quiz', help='Add a quiz to a module')
     quiz_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
-    quiz_parser.add_argument('--module', required=True, help='Module title to add quiz to')
+    quiz_parser.add_argument('--module', help='Module title to add quiz to (optional - if not specified, creates standalone quiz)')
     quiz_parser.add_argument('--title', required=True, help='Quiz title')
     quiz_parser.add_argument('--description', required=True, help='Quiz description')
     quiz_parser.add_argument('--points', type=int, default=10, help='Points possible (default: 10)')
@@ -389,14 +446,14 @@ def main():
     # Add-discussion command
     discussion_parser = subparsers.add_parser('add-discussion', help='Add a discussion to a module')
     discussion_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
-    discussion_parser.add_argument('--module', required=True, help='Module title to add discussion to')
+    discussion_parser.add_argument('--module', help='Module title to add discussion to (optional - if not specified, creates standalone discussion)')
     discussion_parser.add_argument('--title', required=True, help='Discussion title')
     discussion_parser.add_argument('--description', required=True, help='Discussion description/prompt')
     
     # Add-file command
     file_parser = subparsers.add_parser('add-file', help='Add a file to a module')
     file_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
-    file_parser.add_argument('--module', required=True, help='Module title to add file to')
+    file_parser.add_argument('--module', help='Module title to add file to (optional - if not specified, creates standalone file)')
     file_parser.add_argument('--filename', required=True, help='Filename')
     file_parser.add_argument('--content', required=True, help='File content')
     
