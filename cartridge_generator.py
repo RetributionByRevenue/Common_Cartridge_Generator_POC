@@ -476,7 +476,8 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
 </body>
 </html>"""
         
-        with open(assignment_dir / "my-first-assignment.html", 'w', encoding='utf-8') as f:
+        html_filename = assignment.get('html_filename', 'my-first-assignment.html')
+        with open(assignment_dir / html_filename, 'w', encoding='utf-8') as f:
             f.write(html_content)
     
     def _create_quiz_files(self, output_path, quiz):

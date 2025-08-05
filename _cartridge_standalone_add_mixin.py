@@ -11,6 +11,7 @@ class CartridgeStandaloneAddMixin:
     def add_assignment_standalone(self, assignment_title, assignment_content="", points=100, published=True):
         """Add an assignment to the cartridge"""
         assignment_id = f"g{uuid.uuid4().hex}"
+        html_filename = f"g{uuid.uuid4().hex}.html"
         
         assignment = {
             'identifier': assignment_id,
@@ -19,7 +20,8 @@ class CartridgeStandaloneAddMixin:
             'points_possible': points,
             'workflow_state': 'published' if published else 'unpublished',
             'assignment_group_id': self.assignment_group_id,
-            'position': len(self.assignments) + 1
+            'position': len(self.assignments) + 1,
+            'html_filename': html_filename
         }
         
         self.assignments.append(assignment)
@@ -28,7 +30,7 @@ class CartridgeStandaloneAddMixin:
         self.resources.append({
             'identifier': assignment_id,
             'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
-            'href': f"{assignment_id}/my-first-assignment.html"
+            'href': f"{assignment_id}/{html_filename}"
         })
         
         # Update cartridge state

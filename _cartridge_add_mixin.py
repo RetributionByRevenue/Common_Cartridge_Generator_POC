@@ -115,6 +115,7 @@ class CartridgeAddMixin:
         """Add an assignment to a specific module using actual module identifier from DataFrame"""
         assignment_id = f"g{uuid.uuid4().hex}"
         item_id = f"g{uuid.uuid4().hex}"
+        html_filename = f"g{uuid.uuid4().hex}.html"
         
         # Find the module in both internal list and verify it exists in current state
         module = next((m for m in self.modules if m['identifier'] == module_id), None)
@@ -189,7 +190,8 @@ class CartridgeAddMixin:
             'points_possible': points,
             'workflow_state': 'published' if published else 'unpublished',
             'assignment_group_id': self.assignment_group_id,
-            'position': len(self.assignments) + 1
+            'position': len(self.assignments) + 1,
+            'html_filename': html_filename
         }
         self.assignments.append(assignment)
         
@@ -197,7 +199,7 @@ class CartridgeAddMixin:
         self.resources.append({
             'identifier': assignment_id,
             'type': 'associatedcontent/imscc_xmlv1p1/learning-application-resource',
-            'href': f"{assignment_id}/my-first-assignment.html"
+            'href': f"{assignment_id}/{html_filename}"
         })
         
         # Add to organization structure
