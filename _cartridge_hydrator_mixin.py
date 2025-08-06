@@ -6,6 +6,7 @@ Provides functionality to hydrate a CartridgeGenerator from an existing cartridg
 
 from pathlib import Path
 import pandas as pd
+import uuid
 from cartridge_replicator import scan_cartridge
 
 
@@ -309,7 +310,134 @@ class CartridgeHydratorMixin:
                 }
                 self.announcements.append(discussion_topic)
         
-        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions")
+        # Hydrate assignments
+        assignment_settings = self.current_df[self.current_df['type'] == 'assignment_settings']
+        for _, assignment_row in assignment_settings.iterrows():
+            assignment_id = assignment_row['identifier']
+            
+            # Get assignment content if it exists
+            assignment_content_rows = self.current_df[
+                (self.current_df['type'] == 'assignment_content') &
+                (self.current_df['filename'].str.contains(assignment_id, na=False))
+            ]
+            
+            content = ''
+            if not assignment_content_rows.empty:
+                content_row = assignment_content_rows.iloc[0]
+                if content_row['xml_content']:
+                    # Extract content from HTML
+                    content = self._extract_content_from_html(content_row['xml_content'])
+            
+            # Parse points from XML content if available
+            points_possible = 100  # default
+            try:
+                if assignment_row['xml_content']:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(assignment_row['xml_content'])
+                    points_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}points_possible')
+                    if points_elem is not None and points_elem.text:
+                        points_possible = float(points_elem.text)
+            except:
+                pass  # Use default if parsing fails
+            
+            assignment = {
+                'identifier': assignment_id,
+                'title': assignment_row['title'],
+                'content': content,
+                'points_possible': points_possible,
+                'workflow_state': assignment_row['workflow_state'] or 'published',
+                'assignment_group_id': self.assignment_group_id,  # Use generator's assignment group
+                'position': int(assignment_row['position']) if assignment_row['position'] else 1
+            }
+            self.assignments.append(assignment)
+        
+        # Hydrate quizzes
+        quiz_assessments = self.current_df[self.current_df['type'] == 'assessment_meta']
+        for _, quiz_row in quiz_assessments.iterrows():
+            quiz_id = quiz_row['identifier']
+            
+            # Parse points, description, and assignment info from XML content if available
+            points_possible = 10  # default
+            description = ''
+            assignment_id = f"g{uuid.uuid4().hex}"  # default fallback
+            assignment_group_id = self.assignment_group_id  # use generator's assignment group
+            try:
+                if quiz_row['xml_content']:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(quiz_row['xml_content'])
+                    points_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}points_possible')
+                    if points_elem is not None and points_elem.text:
+                        points_possible = float(points_elem.text)
+                    
+                    desc_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}description')
+                    if desc_elem is not None and desc_elem.text:
+                        # Extract content from HTML description
+                        description = self._extract_content_from_html(desc_elem.text)
+                    
+                    # Extract assignment identifier
+                    assignment_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}assignment')
+                    if assignment_elem is not None:
+                        assignment_id = assignment_elem.get('identifier', assignment_id)
+                        
+                    # Extract assignment group identifier
+                    assignment_group_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}assignment_group_identifierref')
+                    if assignment_group_elem is not None and assignment_group_elem.text:
+                        assignment_group_id = assignment_group_elem.text
+            except:
+                pass  # Use defaults if parsing fails
+            
+            # Generate missing IDs for quiz questions (needed for file creation)
+            question_id = f"g{uuid.uuid4().hex}"
+            assessment_question_id = f"g{uuid.uuid4().hex}"
+            
+            quiz = {
+                'identifier': quiz_id,
+                'title': quiz_row['title'],
+                'description': description,
+                'points_possible': points_possible,
+                'workflow_state': quiz_row['workflow_state'] or 'published',
+                'position': int(quiz_row['position']) if quiz_row['position'] else 1,
+                'assignment_id': assignment_id,
+                'assignment_group_id': assignment_group_id,
+                'question_id': question_id,
+                'assessment_question_id': assessment_question_id
+            }
+            self.quizzes.append(quiz)
+        
+        # Hydrate files
+        file_resources = self.current_df[
+            (self.current_df['type'] == 'resource') & 
+            (self.current_df['href'].str.contains('web_resources/', na=False))
+        ]
+        
+        for _, file_resource in file_resources.iterrows():
+            file_id = file_resource['identifier']
+            href = file_resource['href']
+            
+            # Extract filename from href (web_resources/filename.ext)
+            filename = href.split('/')[-1] if '/' in href else href
+            
+            # Get file content if it exists
+            file_content_rows = self.current_df[
+                (self.current_df['type'] == 'web_resources_file') &
+                (self.current_df['filename'].str.contains(filename, na=False))
+            ]
+            
+            content = ''
+            if not file_content_rows.empty:
+                content_row = file_content_rows.iloc[0]
+                if content_row['xml_content']:
+                    content = content_row['xml_content']
+            
+            file_info = {
+                'identifier': file_id,
+                'filename': filename,
+                'content': content,
+                'path': href  # Use the full href as the path
+            }
+            self.files.append(file_info)
+        
+        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions, {len(self.assignments)} assignments, {len(self.quizzes)} quizzes, {len(self.files)} files")
     
     def _extract_content_from_html(self, html_content):
         """Extract body content from HTML"""
