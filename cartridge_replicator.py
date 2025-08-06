@@ -592,10 +592,6 @@ def scan_cartridge(input_cartridge_path):
                         except ET.ParseError:
                             pass
                     elif filename.endswith('.html'):
-                        # For assignment content HTML files, set identifier to the parent directory (assignment ID)
-                        if content_type == 'assignment_content':
-                            identifier = file_path.parent.name
-                        
                         # Extract title from HTML
                         try:
                             root = ET.fromstring(content)
