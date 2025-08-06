@@ -97,39 +97,79 @@ class CartridgeHydratorMixin:
         self.resources = []
         self.organization_items = []
         
-        # Hydrate modules
+        # Create a mapping of module_id -> items from organization structure first
+        module_items_map = {}
+        manifest_row = self.current_df[self.current_df['type'] == 'manifest']
+        if not manifest_row.empty:
+            try:
+                import xml.etree.ElementTree as ET
+                manifest_xml = manifest_row.iloc[0]['xml_content']
+                root = ET.fromstring(manifest_xml)
+                
+                # Find LearningModules organization to get proper module-item hierarchy
+                learning_modules = root.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item[@identifier="LearningModules"]')
+                if learning_modules is not None:
+                    for module_item in learning_modules.findall('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item'):
+                        if module_item.get('identifier') != 'LearningModules':
+                            module_id = module_item.get('identifier')
+                            items = []
+                            
+                            # Get child items of this module
+                            for child in module_item.findall('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item'):
+                                if child != module_item:  # Don't include the module itself
+                                    child_id = child.get('identifier')
+                                    child_ref = child.get('identifierref')
+                                    child_title_elem = child.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}title')
+                                    child_title = child_title_elem.text if child_title_elem is not None else None
+                                    
+                                    if child_title:
+                                        items.append({
+                                            'identifier': child_id,
+                                            'identifierref': child_ref,
+                                            'title': child_title
+                                        })
+                            
+                            module_items_map[module_id] = items
+                            
+            except ET.ParseError:
+                print("Warning: Could not parse organization structure from manifest")
+        
+        # Hydrate modules using proper module-item mapping
         modules = self.current_df[self.current_df['type'] == 'module']
         for _, module_row in modules.iterrows():
+            module_id = module_row['identifier']
             module = {
-                'identifier': module_row['identifier'],
+                'identifier': module_id,
                 'title': module_row['title'],
                 'position': int(module_row['position']) if module_row['position'] else 1,
                 'workflow_state': module_row['workflow_state'] or 'published',
                 'items': []
             }
             
-            # Find module items for this module
-            module_items = self.current_df[
-                (self.current_df['type'] == 'module_item') & 
-                (self.current_df['identifierref'].notna())
-            ]
+            # Get items that actually belong to this module from organization structure
+            org_items = module_items_map.get(module_id, [])
             
-            for _, item_row in module_items.iterrows():
-                # This is a simplification - in a real scenario you'd need to match items to modules
-                # For now, we'll add all items to all modules (this should be refined)
-                item = {
-                    'identifier': item_row['identifier'],
-                    'content_type': item_row['content_type'] or 'WikiPage',  # Default to WikiPage if missing
-                    'workflow_state': item_row['workflow_state'] or 'published',
-                    'title': item_row['title'],
-                    'identifierref': item_row['identifierref'],
-                    'position': int(item_row['position']) if item_row['position'] else 1
-                }
-                module['items'].append(item)
+            # Match organization items with module_item data from DataFrame
+            all_module_items = self.current_df[self.current_df['type'] == 'module_item']
+            
+            for org_item in org_items:
+                # Find matching module_item data
+                matching_item = all_module_items[all_module_items['identifier'] == org_item['identifier']]
+                if not matching_item.empty:
+                    item_row = matching_item.iloc[0]
+                    item = {
+                        'identifier': org_item['identifier'],
+                        'content_type': item_row['content_type'] or 'WikiPage',
+                        'workflow_state': item_row['workflow_state'] or 'published',
+                        'title': org_item['title'],
+                        'identifierref': org_item['identifierref'],
+                        'position': int(item_row['position']) if item_row['position'] else 1
+                    }
+                    module['items'].append(item)
             
             self.modules.append(module)
             
-            # Add to organization structure
+            # Add to organization structure with proper items
             self.organization_items.append({
                 'identifier': module['identifier'],
                 'title': module['title'],

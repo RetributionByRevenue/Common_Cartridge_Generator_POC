@@ -303,28 +303,82 @@ def list_cartridge(args):
     modules = generator.df[generator.df["type"] == "module"]
     if not modules.empty:
         print("Modules:")
-        for _, module in modules.iterrows():
-            print(f"  📁 {module['title']} (ID: {module['identifier']})")
-            
-            # Find items in this module (this is simplified - in real implementation you'd need proper module-item mapping)
-            module_items = generator.df[generator.df["type"] == "module_item"]
-            if not module_items.empty:
-                for _, item in module_items.iterrows():
-                    content_type = item.get('content_type', 'Unknown')
-                    icons = {
-                        "WikiPage": "📄",
-                        "Assignment": "📝", 
-                        "Quiz": "❓",
-                        "Discussion": "💬",
-                        "File": "📎"
-                    }
-                    icon = icons.get(content_type, "❓")
-                    print(f"    {icon} {item['title']} ({content_type})")
+        
+        # Parse organization structure from manifest to get proper module-item hierarchy
+        manifest_row = generator.df[generator.df["type"] == "manifest"]
+        if not manifest_row.empty:
+            import xml.etree.ElementTree as ET
+            try:
+                manifest_xml = manifest_row.iloc[0]['xml_content']
+                root = ET.fromstring(manifest_xml)
+                
+                # Find LearningModules organization
+                learning_modules = root.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item[@identifier="LearningModules"]')
+                if learning_modules is not None:
+                    # Create a mapping of module ID to its items
+                    module_items_map = {}
+                    
+                    for module_item in learning_modules.findall('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item'):
+                        if module_item.get('identifier') != 'LearningModules':
+                            module_id = module_item.get('identifier')
+                            title_elem = module_item.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}title')
+                            
+                            # Find child items of this module
+                            child_items = []
+                            for child in module_item.findall('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}item'):
+                                if child != module_item:  # Exclude the module itself
+                                    child_title_elem = child.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}title')
+                                    child_title = child_title_elem.text if child_title_elem is not None else None
+                                    if child_title:
+                                        child_items.append(child_title)
+                            
+                            module_items_map[module_id] = child_items
+                    
+                    # Display modules with their proper items
+                    for _, module in modules.iterrows():
+                        print(f"  📁 {module['title']} (ID: {module['identifier']})")
+                        
+                        # Get items for this specific module
+                        module_items = module_items_map.get(module['identifier'], [])
+                        
+                        # Remove duplicates while preserving order
+                        seen_items = set()
+                        unique_items = []
+                        for item_title in module_items:
+                            if item_title not in seen_items:
+                                seen_items.add(item_title)
+                                unique_items.append(item_title)
+                        
+                        for item_title in unique_items:
+                            content_type = "WikiPage"  # Default - could be improved by checking resource type
+                            icons = {
+                                "WikiPage": "📄",
+                                "Assignment": "📝", 
+                                "Quiz": "❓",
+                                "Discussion": "💬",
+                                "File": "📎"
+                            }
+                            icon = icons.get(content_type, "❓")
+                            print(f"    {icon} {item_title} ({content_type})")
+                        
+                        if not unique_items:
+                            print("    (no items)")
+                            
+            except ET.ParseError as e:
+                print(f"Error parsing manifest XML: {e}")
+                # Fallback to simple module listing
+                for _, module in modules.iterrows():
+                    print(f"  📁 {module['title']} (ID: {module['identifier']})")
     
     # List component types
     print("\nComponent breakdown:")
     for comp_type, count in summary['component_types'].items():
         print(f"  {comp_type}: {count}")
+    
+    # Export DataFrame to HTML for inspection
+    html_file = "table_inspect.html"
+    generator.current_df.to_html(html_file, escape=False)
+    print(f"\n✓ DataFrame exported to {html_file} for inspection")
     
     return 0
 
