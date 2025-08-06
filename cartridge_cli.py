@@ -329,8 +329,12 @@ def list_cartridge(args):
                                 if child != module_item:  # Exclude the module itself
                                     child_title_elem = child.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1}title')
                                     child_title = child_title_elem.text if child_title_elem is not None else None
+                                    child_ref = child.get('identifierref')
                                     if child_title:
-                                        child_items.append(child_title)
+                                        child_items.append({
+                                            'title': child_title,
+                                            'identifierref': child_ref
+                                        })
                             
                             module_items_map[module_id] = child_items
                     
@@ -344,17 +348,65 @@ def list_cartridge(args):
                         # Remove duplicates while preserving order
                         seen_items = set()
                         unique_items = []
-                        for item_title in module_items:
-                            if item_title not in seen_items:
-                                seen_items.add(item_title)
-                                unique_items.append(item_title)
+                        for item in module_items:
+                            item_key = item['title'] if isinstance(item, dict) else item
+                            if item_key not in seen_items:
+                                seen_items.add(item_key)
+                                unique_items.append(item)
                         
-                        for item_title in unique_items:
-                            content_type = "WikiPage"  # Default - could be improved by checking resource type
+                        for item in unique_items:
+                            if isinstance(item, dict):
+                                item_title = item['title']
+                                identifierref = item.get('identifierref')
+                                
+                                # Look up content type from resource or module_item data
+                                content_type = "WikiPage"  # Default
+                                
+                                # Try to determine content type from identifierref
+                                if identifierref:
+                                    # Check resources for this identifierref
+                                    resource_match = generator.df[
+                                        (generator.df['identifier'] == identifierref) & 
+                                        (generator.df['type'] == 'resource')
+                                    ]
+                                    if not resource_match.empty:
+                                        resource_type = resource_match.iloc[0]['resource_type']
+                                        if resource_type:
+                                            if 'assessment' in resource_type:
+                                                content_type = "Quiz"
+                                            elif 'imsdt' in resource_type:
+                                                content_type = "Discussion"
+                                            elif resource_type == 'webcontent':
+                                                content_type = "WikiPage"
+                                            elif 'assignment' in resource_type:
+                                                content_type = "Assignment"
+                                            else:
+                                                content_type = "File"
+                                
+                                # Also check module_item data for content_type
+                                module_item_match = generator.df[
+                                    (generator.df['title'] == item_title) & 
+                                    (generator.df['type'] == 'module_item')
+                                ]
+                                if not module_item_match.empty:
+                                    item_content_type = module_item_match.iloc[0].get('content_type')
+                                    if item_content_type:
+                                        content_type = item_content_type
+                                        # Clean up content type names
+                                        if content_type == "Quizzes::Quiz":
+                                            content_type = "Quiz"
+                                        elif content_type == "Attachment":
+                                            content_type = "File"
+                            else:
+                                # Fallback for old format
+                                item_title = item
+                                content_type = "WikiPage"
+                            
                             icons = {
                                 "WikiPage": "📄",
                                 "Assignment": "📝", 
                                 "Quiz": "❓",
+                                "DiscussionTopic": "💬",
                                 "Discussion": "💬",
                                 "File": "📎"
                             }
