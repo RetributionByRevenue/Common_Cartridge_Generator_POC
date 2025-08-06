@@ -4,43 +4,56 @@ This tool generates Canvas Common Cartridge packages with various content types.
 
 ## Usage
 
-```bash
-/home/q/Desktop/test_cartridge/.venv/bin/python cartridge_generator.py generated_cartridge
-```
-
 **Examples:**
 ```bash
-    #delete cartridge
-    rm -rf ./test_cartridge
-    
-    #create cartridge
-    .venv/bin/python cartridge_cli.py create test_cartridge --title "Test Course" --code   "TEST101"
-    
-    #create module
-    .venv/bin/python cartridge_cli.py add-module test_cartridge --title "Week 1"   --position 1 --published true
-    
-    #add and delete wiki page
-    .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "booga" --content "This is a test wiki page that we will delete."
-    .venv/bin/python cartridge_cli.py delete-wiki-page test_cartridge --title "booga"
-    
-    #add and delete assignment
-    .venv/bin/python cartridge_cli.py add-assignment test_cartridge --title "Assignment 1" --content "First assignment" --points 50
-    .venv/bin/python cartridge_cli.py delete-assignment test_cartridge --title "Assignment 1" 
-    
-    #add and delete quiz
-    .venv/bin/python cartridge_cli.py add-quiz test_cartridge --title "Quiz 1" --description "First quiz" --points 20
-    .venv/bin/python cartridge_cli.py delete-quiz test_cartridge --title "Quiz 1"
-    
-    #add and delete assignment
-    .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "Module Discussion1" --description "" --body-content "What"
-    .venv/bin/python cartridge_cli.py delete-discussion test_cartridge --title "My Discussion Topic 1"
-    
-    #add and delete file
-    .venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document2.txt" --content "File content here"
-    .venv/bin/python cartridge_cli.py delete-file test_cartridge --filename "document2.txt"
-    
-    #zip the cartridge
-    .venv/bin/python cartridge_cli.py package test_cartridge
+#add and delete test
+rm -rf ./test_cartridge && rm -rf ./table_inspect.html
+
+#create cartridge
+.venv/bin/python cartridge_cli.py create test_cartridge --title "Test Course" --code   "TEST101"
+
+#create module
+.venv/bin/python cartridge_cli.py add-module test_cartridge --title "Week 1"   --position 1 --published true
+
+#add discussion
+.venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "My Discussion Topic 88" --description "Lets talk abou8t the birds and the bees."
+.venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "My Discussion Topic 3" --description "Lets talk about the birds and the bees."
+
+#delete discussion
+.venv/bin/python cartridge_cli.py delete-discussion test_cartridge --title "My Discussion Topic 3"
+
+#add wiki page
+.venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "booga2" --content "This is a test wiki page that we will delete."
+.venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "depressed wiki page" --content "This is a test wiki page that we will delete."
+
+#delete wiki page
+.venv/bin/python cartridge_cli.py delete-wiki test_cartridge  --title "booga2" 
+
+#add  assignment 
+.venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "Week 1"  --title "Assignment 2" --content "Write and essay on the history of pokemon." --points 50
+.venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "Week 1"  --title "Assignment 1" --content "Write a essay on why the sky is blue" --points 50
+
+#delete assignment
+#.venv/bin/python cartridge_cli.py delete-assignment test_cartridge --title "Assignment 2"
+
+#add file
+.venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document3.txt" --content "File content here"
+.venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document33.txt" --content "File content here"
+
+#delete file
+.venv/bin/python cartridge_cli.py delete-file test_cartridge --filename "document33.txt"
+
+#add quiz
+.venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "Week 1" --title "Test Quiz 1" --description "This is a test quiz" --points 10
+.venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "Week 1" --title "Test Quiz 2" --description "This is a test quiz" --points 10
+
+#delete quiz
+.venv/bin/python cartridge_cli.py delete-quiz test_cartridge --title "Test Quiz 1"
+
+#end
+.venv/bin/python cartridge_cli.py package test_cartridge #create table for inspection
+.venv/bin/python cartridge_cli.py list test_cartridge
+
 
     Left to Port:
     # Update wiki page
