@@ -5,6 +5,8 @@ Provides functionality to hydrate a CartridgeGenerator from an existing cartridg
 """
 
 from pathlib import Path
+import pandas as pd
+import uuid
 from cartridge_replicator import scan_cartridge
 
 
@@ -187,13 +189,41 @@ class CartridgeHydratorMixin:
             }
             # Add dependency if it exists (for quizzes, announcements, etc.)
             if resource_row['resource_type'] in ['imsqti_xmlv1p2/imscc_xmlv1p1/assessment', 'imsdt_xmlv1p1']:
-                # Find corresponding meta resource
-                meta_resources = self.current_df[
-                    (self.current_df['type'] == 'resource') & 
-                    (self.current_df['href'].str.contains('assessment_meta.xml|topicMeta', na=False))
-                ]
-                if not meta_resources.empty:
-                    resource['dependency'] = meta_resources.iloc[0]['identifier']
+                # For discussions, find the corresponding topicMeta resource
+                if resource_row['resource_type'] == 'imsdt_xmlv1p1':
+                    # Parse the discussion XML to find the topic_id and match it with topicMeta
+                    discussion_id = resource_row['identifier']
+                    
+                    # Find topicMeta resources that reference this discussion
+                    meta_resources = self.current_df[
+                        (self.current_df['type'] == 'resource') & 
+                        (self.current_df['resource_type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource') &
+                        (self.current_df['href'].str.contains('discussions/', na=False))
+                    ]
+                    
+                    # Check each meta resource to see if it references this discussion
+                    for _, meta_row in meta_resources.iterrows():
+                        if meta_row['identifier'] != discussion_id:  # Don't match with self
+                            try:
+                                # Check if this meta resource file contains a topic_id that matches our discussion
+                                meta_file_path = Path(self.output_dir) / meta_row['href']
+                                if meta_file_path.exists():
+                                    import xml.etree.ElementTree as ET
+                                    with open(meta_file_path, 'r', encoding='utf-8') as f:
+                                        meta_content = f.read()
+                                        if f'<topic_id>{discussion_id}</topic_id>' in meta_content:
+                                            resource['dependency'] = meta_row['identifier']
+                                            break
+                            except:
+                                pass  # Skip if we can't read the file
+                else:
+                    # For quizzes, use the original logic
+                    meta_resources = self.current_df[
+                        (self.current_df['type'] == 'resource') & 
+                        (self.current_df['href'].str.contains('assessment_meta.xml', na=False))
+                    ]
+                    if not meta_resources.empty:
+                        resource['dependency'] = meta_resources.iloc[0]['identifier']
             
             self.resources.append(resource)
         
@@ -201,6 +231,7 @@ class CartridgeHydratorMixin:
         wiki_pages = self.current_df[self.current_df['type'] == 'wiki_page']
         for _, wiki_row in wiki_pages.iterrows():
             wiki_page = {
+                'identifier': wiki_row['identifier'],  # Add identifier for deletion compatibility
                 'resource_id': wiki_row['identifier'],
                 'title': wiki_row['title'],
                 'filename': wiki_row['filename'],
@@ -209,7 +240,204 @@ class CartridgeHydratorMixin:
             }
             self.wiki_pages.append(wiki_page)
         
-        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages")
+        # Hydrate discussions (stored in announcements list)
+        # Find discussion resources and build discussion objects from module items
+        discussion_resources = self.current_df[
+            (self.current_df['type'] == 'resource') & 
+            (self.current_df['resource_type'] == 'imsdt_xmlv1p1')
+        ]
+        
+        for _, discussion_res in discussion_resources.iterrows():
+            main_resource_id = discussion_res['identifier']
+            
+            # Find the module item that references this discussion
+            module_items = self.current_df[
+                (self.current_df['type'] == 'module_item') & 
+                (self.current_df['identifierref'] == main_resource_id)
+            ]
+            
+            if not module_items.empty:
+                module_item = module_items.iloc[0]
+                title = module_item['title']
+                
+                # Find the correct meta resource by checking topicMeta files
+                meta_id = None
+                meta_resources = self.current_df[
+                    (self.current_df['type'] == 'resource') & 
+                    (self.current_df['resource_type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource') &
+                    (self.current_df['href'].str.contains('discussions/', na=False))
+                ]
+                
+                # Check each meta resource to find the one that references this discussion
+                for _, meta_res in meta_resources.iterrows():
+                    if meta_res['identifier'] != main_resource_id:  # Different from main resource
+                        try:
+                            # Check if this meta resource file contains a topic_id that matches our discussion
+                            meta_file_path = Path(self.output_dir) / meta_res['href']
+                            if meta_file_path.exists():
+                                with open(meta_file_path, 'r', encoding='utf-8') as f:
+                                    meta_content = f.read()
+                                    if f'<topic_id>{main_resource_id}</topic_id>' in meta_content:
+                                        meta_id = meta_res['identifier']
+                                        break
+                        except:
+                            pass  # Skip if we can't read the file
+                
+                # Extract body content from the discussion XML file
+                body = ''
+                try:
+                    discussion_file_path = Path(self.output_dir) / discussion_res['href']
+                    if discussion_file_path.exists():
+                        import xml.etree.ElementTree as ET
+                        with open(discussion_file_path, 'r', encoding='utf-8') as f:
+                            discussion_xml = f.read()
+                            root = ET.fromstring(discussion_xml)
+                            # Look for text element with texttype="text/html"
+                            text_elem = root.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1}text[@texttype="text/html"]')
+                            if text_elem is not None and text_elem.text:
+                                # Decode HTML entities
+                                import html
+                                body = html.unescape(text_elem.text)
+                except:
+                    pass  # Use empty body if we can't parse the file
+                
+                discussion_topic = {
+                    'topic_id': main_resource_id,  # Use the main resource ID
+                    'meta_id': meta_id,
+                    'title': title,
+                    'body': body,
+                    'workflow_state': 'active'
+                }
+                self.announcements.append(discussion_topic)
+        
+        # Hydrate assignments
+        assignment_settings = self.current_df[self.current_df['type'] == 'assignment_settings']
+        for _, assignment_row in assignment_settings.iterrows():
+            assignment_id = assignment_row['identifier']
+            
+            # Get assignment content if it exists
+            assignment_content_rows = self.current_df[
+                (self.current_df['type'] == 'assignment_content') &
+                (self.current_df['filename'].str.contains(assignment_id, na=False))
+            ]
+            
+            content = ''
+            if not assignment_content_rows.empty:
+                content_row = assignment_content_rows.iloc[0]
+                if content_row['xml_content']:
+                    # Extract content from HTML
+                    content = self._extract_content_from_html(content_row['xml_content'])
+            
+            # Parse points from XML content if available
+            points_possible = 100  # default
+            try:
+                if assignment_row['xml_content']:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(assignment_row['xml_content'])
+                    points_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}points_possible')
+                    if points_elem is not None and points_elem.text:
+                        points_possible = float(points_elem.text)
+            except:
+                pass  # Use default if parsing fails
+            
+            assignment = {
+                'identifier': assignment_id,
+                'title': assignment_row['title'],
+                'content': content,
+                'points_possible': points_possible,
+                'workflow_state': assignment_row['workflow_state'] or 'published',
+                'assignment_group_id': self.assignment_group_id,  # Use generator's assignment group
+                'position': int(assignment_row['position']) if assignment_row['position'] else 1
+            }
+            self.assignments.append(assignment)
+        
+        # Hydrate quizzes
+        quiz_assessments = self.current_df[self.current_df['type'] == 'assessment_meta']
+        for _, quiz_row in quiz_assessments.iterrows():
+            quiz_id = quiz_row['identifier']
+            
+            # Parse points, description, and assignment info from XML content if available
+            points_possible = 10  # default
+            description = ''
+            assignment_id = f"g{uuid.uuid4().hex}"  # default fallback
+            assignment_group_id = self.assignment_group_id  # use generator's assignment group
+            try:
+                if quiz_row['xml_content']:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(quiz_row['xml_content'])
+                    points_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}points_possible')
+                    if points_elem is not None and points_elem.text:
+                        points_possible = float(points_elem.text)
+                    
+                    desc_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}description')
+                    if desc_elem is not None and desc_elem.text:
+                        # Extract content from HTML description
+                        description = self._extract_content_from_html(desc_elem.text)
+                    
+                    # Extract assignment identifier
+                    assignment_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}assignment')
+                    if assignment_elem is not None:
+                        assignment_id = assignment_elem.get('identifier', assignment_id)
+                        
+                    # Extract assignment group identifier
+                    assignment_group_elem = root.find('.//{http://canvas.instructure.com/xsd/cccv1p0}assignment_group_identifierref')
+                    if assignment_group_elem is not None and assignment_group_elem.text:
+                        assignment_group_id = assignment_group_elem.text
+            except:
+                pass  # Use defaults if parsing fails
+            
+            # Generate missing IDs for quiz questions (needed for file creation)
+            question_id = f"g{uuid.uuid4().hex}"
+            assessment_question_id = f"g{uuid.uuid4().hex}"
+            
+            quiz = {
+                'identifier': quiz_id,
+                'title': quiz_row['title'],
+                'description': description,
+                'points_possible': points_possible,
+                'workflow_state': quiz_row['workflow_state'] or 'published',
+                'position': int(quiz_row['position']) if quiz_row['position'] else 1,
+                'assignment_id': assignment_id,
+                'assignment_group_id': assignment_group_id,
+                'question_id': question_id,
+                'assessment_question_id': assessment_question_id
+            }
+            self.quizzes.append(quiz)
+        
+        # Hydrate files
+        file_resources = self.current_df[
+            (self.current_df['type'] == 'resource') & 
+            (self.current_df['href'].str.contains('web_resources/', na=False))
+        ]
+        
+        for _, file_resource in file_resources.iterrows():
+            file_id = file_resource['identifier']
+            href = file_resource['href']
+            
+            # Extract filename from href (web_resources/filename.ext)
+            filename = href.split('/')[-1] if '/' in href else href
+            
+            # Get file content if it exists
+            file_content_rows = self.current_df[
+                (self.current_df['type'] == 'web_resources_file') &
+                (self.current_df['filename'].str.contains(filename, na=False))
+            ]
+            
+            content = ''
+            if not file_content_rows.empty:
+                content_row = file_content_rows.iloc[0]
+                if content_row['xml_content']:
+                    content = content_row['xml_content']
+            
+            file_info = {
+                'identifier': file_id,
+                'filename': filename,
+                'content': content,
+                'path': href  # Use the full href as the path
+            }
+            self.files.append(file_info)
+        
+        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions, {len(self.assignments)} assignments, {len(self.quizzes)} quizzes, {len(self.files)} files")
     
     def _extract_content_from_html(self, html_content):
         """Extract body content from HTML"""

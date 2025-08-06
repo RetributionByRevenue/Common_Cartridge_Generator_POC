@@ -684,10 +684,25 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
                 break
         
         # Create announcement topic XML (topic content)
+        # Get the content and properly escape it for XML
+        content = announcement.get('content', announcement.get('body', ''))
+        
+        # If content doesn't already contain HTML tags, wrap it in <p> tags
+        import html
+        if content and not ('<' in content and '>' in content):
+            # Plain text content - wrap in paragraph tags and escape
+            escaped_content = html.escape(f'<p>{content}</p>')
+        elif content:
+            # Content already has HTML tags - just escape it
+            escaped_content = html.escape(content)
+        else:
+            # Empty content
+            escaped_content = html.escape('<p></p>')
+        
         topic_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <topic xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1  http://www.imsglobal.org/profile/cc/ccv1p1/ccv1p1_imsdt_v1p1.xsd">
   <title>{announcement['title']}</title>
-  <text texttype="text/html">&lt;p&gt;{announcement.get('content', announcement.get('body', ''))}&lt;/p&gt;</text>
+  <text texttype="text/html">{escaped_content}</text>
 </topic>
 """
         
