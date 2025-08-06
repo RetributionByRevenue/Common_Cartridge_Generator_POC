@@ -435,6 +435,121 @@ def list_cartridge(args):
     return 0
 
 
+def delete_wiki(args):
+    """Delete a wiki page from an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find wiki page by title
+    try:
+        wiki_pages = generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == args.title)]
+        if wiki_pages.empty:
+            print(f"Error: Wiki page '{args.title}' not found in cartridge")
+            print("Available wiki pages:")
+            all_wiki_pages = generator.df[generator.df["type"] == "wiki_page"]["title"].tolist()
+            if all_wiki_pages:
+                for page in all_wiki_pages:
+                    print(f"  - {page}")
+            else:
+                print("  (no wiki pages found)")
+            return 1
+        
+        wiki_page_id = wiki_pages.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding wiki page: {e}")
+        return 1
+    
+    # Delete wiki page
+    try:
+        print(f"Deleting wiki page '{args.title}' from cartridge '{args.cartridge_name}'")
+        generator.delete_wiki_page_by_id(wiki_page_id)
+        
+        print(f"✓ Wiki page '{args.title}' deleted successfully")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error deleting wiki page: {e}")
+        return 1
+    
+    return 0
+
+
+def delete_discussion(args):
+    """Delete a discussion from an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find discussion by title - discussions use type "resource" and identifierref lookup
+    try:
+        # First find resources with discussion-related type
+        discussion_resources = generator.df[
+            (generator.df["type"] == "resource") & 
+            (generator.df["resource_type"] == "imsdt_xmlv1p1")
+        ]
+        
+        # Then find module items that reference these resources and match the title
+        discussion_items = generator.df[
+            (generator.df["type"] == "module_item") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if discussion_items.empty:
+            print(f"Error: Discussion '{args.title}' not found in cartridge")
+            print("Available discussions:")
+            # Find all discussions by looking at module items with Discussion content type
+            all_discussions = generator.df[
+                (generator.df["type"] == "module_item") & 
+                (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+            ]["title"].tolist()
+            if all_discussions:
+                for discussion in all_discussions:
+                    print(f"  - {discussion}")
+            else:
+                print("  (no discussions found)")
+            return 1
+        
+        # Get the identifierref from the module item to find the actual discussion resource
+        discussion_item = discussion_items.iloc[0]
+        discussion_id = discussion_item["identifierref"]
+        
+    except Exception as e:
+        print(f"Error finding discussion: {e}")
+        return 1
+    
+    # Delete discussion
+    try:
+        print(f"Deleting discussion '{args.title}' from cartridge '{args.cartridge_name}'")
+        generator.delete_discussion_by_id(discussion_id)
+        
+        print(f"✓ Discussion '{args.title}' deleted successfully")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error deleting discussion: {e}")
+        return 1
+    
+    return 0
+
+
 def package_cartridge(args):
     """Package cartridge into a zip file"""
     cartridge_path = Path(args.cartridge_name)
@@ -510,6 +625,16 @@ def main():
     list_parser = subparsers.add_parser('list', help='List contents of a cartridge')
     list_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
     
+    # Delete-wiki command
+    delete_wiki_parser = subparsers.add_parser('delete-wiki', help='Delete a wiki page from a cartridge')
+    delete_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    delete_wiki_parser.add_argument('--title', required=True, help='Wiki page title to delete')
+    
+    # Delete-discussion command
+    delete_discussion_parser = subparsers.add_parser('delete-discussion', help='Delete a discussion from a cartridge')
+    delete_discussion_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    delete_discussion_parser.add_argument('--title', required=True, help='Discussion title to delete')
+    
     # Package command
     package_parser = subparsers.add_parser('package', help='Package cartridge into ZIP file')
     package_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -537,6 +662,10 @@ def main():
         return add_file(args)
     elif args.command == 'list':
         return list_cartridge(args)
+    elif args.command == 'delete-wiki':
+        return delete_wiki(args)
+    elif args.command == 'delete-discussion':
+        return delete_discussion(args)
     elif args.command == 'package':
         return package_cartridge(args)
     else:

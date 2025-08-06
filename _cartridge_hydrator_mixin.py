@@ -5,6 +5,7 @@ Provides functionality to hydrate a CartridgeGenerator from an existing cartridg
 """
 
 from pathlib import Path
+import pandas as pd
 from cartridge_replicator import scan_cartridge
 
 
@@ -187,13 +188,41 @@ class CartridgeHydratorMixin:
             }
             # Add dependency if it exists (for quizzes, announcements, etc.)
             if resource_row['resource_type'] in ['imsqti_xmlv1p2/imscc_xmlv1p1/assessment', 'imsdt_xmlv1p1']:
-                # Find corresponding meta resource
-                meta_resources = self.current_df[
-                    (self.current_df['type'] == 'resource') & 
-                    (self.current_df['href'].str.contains('assessment_meta.xml|topicMeta', na=False))
-                ]
-                if not meta_resources.empty:
-                    resource['dependency'] = meta_resources.iloc[0]['identifier']
+                # For discussions, find the corresponding topicMeta resource
+                if resource_row['resource_type'] == 'imsdt_xmlv1p1':
+                    # Parse the discussion XML to find the topic_id and match it with topicMeta
+                    discussion_id = resource_row['identifier']
+                    
+                    # Find topicMeta resources that reference this discussion
+                    meta_resources = self.current_df[
+                        (self.current_df['type'] == 'resource') & 
+                        (self.current_df['resource_type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource') &
+                        (self.current_df['href'].str.contains('discussions/', na=False))
+                    ]
+                    
+                    # Check each meta resource to see if it references this discussion
+                    for _, meta_row in meta_resources.iterrows():
+                        if meta_row['identifier'] != discussion_id:  # Don't match with self
+                            try:
+                                # Check if this meta resource file contains a topic_id that matches our discussion
+                                meta_file_path = Path(self.output_dir) / meta_row['href']
+                                if meta_file_path.exists():
+                                    import xml.etree.ElementTree as ET
+                                    with open(meta_file_path, 'r', encoding='utf-8') as f:
+                                        meta_content = f.read()
+                                        if f'<topic_id>{discussion_id}</topic_id>' in meta_content:
+                                            resource['dependency'] = meta_row['identifier']
+                                            break
+                            except:
+                                pass  # Skip if we can't read the file
+                else:
+                    # For quizzes, use the original logic
+                    meta_resources = self.current_df[
+                        (self.current_df['type'] == 'resource') & 
+                        (self.current_df['href'].str.contains('assessment_meta.xml', na=False))
+                    ]
+                    if not meta_resources.empty:
+                        resource['dependency'] = meta_resources.iloc[0]['identifier']
             
             self.resources.append(resource)
         
@@ -201,6 +230,7 @@ class CartridgeHydratorMixin:
         wiki_pages = self.current_df[self.current_df['type'] == 'wiki_page']
         for _, wiki_row in wiki_pages.iterrows():
             wiki_page = {
+                'identifier': wiki_row['identifier'],  # Add identifier for deletion compatibility
                 'resource_id': wiki_row['identifier'],
                 'title': wiki_row['title'],
                 'filename': wiki_row['filename'],
@@ -209,7 +239,77 @@ class CartridgeHydratorMixin:
             }
             self.wiki_pages.append(wiki_page)
         
-        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages")
+        # Hydrate discussions (stored in announcements list)
+        # Find discussion resources and build discussion objects from module items
+        discussion_resources = self.current_df[
+            (self.current_df['type'] == 'resource') & 
+            (self.current_df['resource_type'] == 'imsdt_xmlv1p1')
+        ]
+        
+        for _, discussion_res in discussion_resources.iterrows():
+            main_resource_id = discussion_res['identifier']
+            
+            # Find the module item that references this discussion
+            module_items = self.current_df[
+                (self.current_df['type'] == 'module_item') & 
+                (self.current_df['identifierref'] == main_resource_id)
+            ]
+            
+            if not module_items.empty:
+                module_item = module_items.iloc[0]
+                title = module_item['title']
+                
+                # Find the correct meta resource by checking topicMeta files
+                meta_id = None
+                meta_resources = self.current_df[
+                    (self.current_df['type'] == 'resource') & 
+                    (self.current_df['resource_type'] == 'associatedcontent/imscc_xmlv1p1/learning-application-resource') &
+                    (self.current_df['href'].str.contains('discussions/', na=False))
+                ]
+                
+                # Check each meta resource to find the one that references this discussion
+                for _, meta_res in meta_resources.iterrows():
+                    if meta_res['identifier'] != main_resource_id:  # Different from main resource
+                        try:
+                            # Check if this meta resource file contains a topic_id that matches our discussion
+                            meta_file_path = Path(self.output_dir) / meta_res['href']
+                            if meta_file_path.exists():
+                                with open(meta_file_path, 'r', encoding='utf-8') as f:
+                                    meta_content = f.read()
+                                    if f'<topic_id>{main_resource_id}</topic_id>' in meta_content:
+                                        meta_id = meta_res['identifier']
+                                        break
+                        except:
+                            pass  # Skip if we can't read the file
+                
+                # Extract body content from the discussion XML file
+                body = ''
+                try:
+                    discussion_file_path = Path(self.output_dir) / discussion_res['href']
+                    if discussion_file_path.exists():
+                        import xml.etree.ElementTree as ET
+                        with open(discussion_file_path, 'r', encoding='utf-8') as f:
+                            discussion_xml = f.read()
+                            root = ET.fromstring(discussion_xml)
+                            # Look for text element with texttype="text/html"
+                            text_elem = root.find('.//{http://www.imsglobal.org/xsd/imsccv1p1/imsdt_v1p1}text[@texttype="text/html"]')
+                            if text_elem is not None and text_elem.text:
+                                # Decode HTML entities
+                                import html
+                                body = html.unescape(text_elem.text)
+                except:
+                    pass  # Use empty body if we can't parse the file
+                
+                discussion_topic = {
+                    'topic_id': main_resource_id,  # Use the main resource ID
+                    'meta_id': meta_id,
+                    'title': title,
+                    'body': body,
+                    'workflow_state': 'active'
+                }
+                self.announcements.append(discussion_topic)
+        
+        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions")
     
     def _extract_content_from_html(self, html_content):
         """Extract body content from HTML"""
