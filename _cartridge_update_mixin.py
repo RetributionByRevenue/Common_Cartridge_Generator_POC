@@ -31,12 +31,38 @@ class CartridgeUpdateMixin:
         
         # Update the wiki page properties
         if page_title is not None:
+            old_filename = wiki_page['filename']
             wiki_page['title'] = page_title
             # Update filename to match new title
-            wiki_page['filename'] = f"wiki_content/{page_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            new_filename = f"wiki_content/{page_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            wiki_page['filename'] = new_filename
+            
+            # Also update the corresponding resource's href
+            for resource in self.resources:
+                if resource['identifier'] == wiki_page['resource_id']:
+                    resource['href'] = new_filename
+                    break
+            
+            # Rename the file on disk if filename changed
+            if self.output_dir and old_filename != new_filename:
+                import os
+                from pathlib import Path
+                old_file_path = os.path.join(self.output_dir, old_filename)
+                new_file_path = Path(self.output_dir) / new_filename
+                if os.path.exists(old_file_path):
+                    os.rename(old_file_path, new_file_path)
+                    # Update the content with the new title
+                    self._create_wiki_page_html(new_file_path, wiki_page)
         
         if page_content is not None:
             wiki_page['content'] = page_content
+            
+            # Write the content directly to the file if we have output_dir
+            if self.output_dir:
+                import os
+                from pathlib import Path
+                file_path = Path(self.output_dir) / wiki_page['filename']
+                self._create_wiki_page_html(file_path, wiki_page)
         
         if published is not None:
             wiki_page['workflow_state'] = 'published' if published else 'unpublished'
@@ -163,6 +189,13 @@ class CartridgeUpdateMixin:
         
         if published is not None:
             assignment['workflow_state'] = 'published' if published else 'unpublished'
+        
+        # Write the content directly to files if we have output_dir and any content changed
+        if self.output_dir and (assignment_title is not None or assignment_content is not None or points is not None or published is not None):
+            from pathlib import Path
+            assignment_dir = Path(self.output_dir) / assignment['identifier']
+            if assignment_dir.exists():
+                self._create_assignment_files(Path(self.output_dir), assignment)
         
         # Update position if specified and assignment is part of a module
         if position is not None and old_position is not None:
@@ -524,12 +557,31 @@ class CartridgeUpdateMixin:
         
         # Update the file properties
         if filename is not None:
+            old_path = file_info['path']
             file_info['filename'] = filename
             # Update path to match new filename
-            file_info['path'] = f"web_resources/{filename}"
+            new_path = f"web_resources/{filename}"
+            file_info['path'] = new_path
+            
+            # Rename the file on disk if filename changed
+            if self.output_dir and old_path != new_path:
+                import os
+                from pathlib import Path
+                old_file_path = os.path.join(self.output_dir, old_path)
+                new_file_path = os.path.join(self.output_dir, new_path)
+                if os.path.exists(old_file_path):
+                    # Ensure new directory exists
+                    Path(new_file_path).parent.mkdir(parents=True, exist_ok=True)
+                    os.rename(old_file_path, new_file_path)
         
         if file_content is not None:
             file_info['content'] = file_content
+            
+            # Write the content directly to the file if we have output_dir
+            if self.output_dir:
+                from pathlib import Path
+                file_path = Path(self.output_dir) / file_info['path']
+                self._create_web_resource_file(Path(self.output_dir), file_info)
         
         # Update filename references in modules and organization items
         if filename is not None and filename != old_filename:
