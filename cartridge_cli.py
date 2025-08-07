@@ -838,6 +838,136 @@ def delete_quiz(args):
     return 0
 
 
+def update_discussion(args):
+    """Update a discussion in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find discussion by title - discussions use type "resource" with resource_type "imsdt_xmlv1p1"
+    try:
+        discussion_resources = generator.df[
+            (generator.df["type"] == "resource") & 
+            (generator.df["resource_type"] == "imsdt_xmlv1p1")
+        ]
+        
+        # Find module items that reference these resources and match the title
+        discussion_items = generator.df[
+            (generator.df["type"] == "module_item") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if discussion_items.empty:
+            print(f"Error: Discussion '{args.title}' not found in cartridge")
+            print("Available discussions:")
+            all_discussions = generator.df[
+                (generator.df["type"] == "module_item") & 
+                (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+            ]["title"].tolist()
+            if all_discussions:
+                for discussion in all_discussions:
+                    print(f"  - {discussion}")
+            else:
+                print("  (no discussions found)")
+            return 1
+        
+        # Get the identifierref from the module item to find the actual discussion resource
+        discussion_item = discussion_items.iloc[0]
+        discussion_id = discussion_item["identifierref"]
+        
+    except Exception as e:
+        print(f"Error finding discussion: {e}")
+        return 1
+    
+    # Update discussion
+    try:
+        print(f"Updating discussion '{args.title}' in cartridge '{args.cartridge_name}'")
+        generator.update_discussion(
+            discussion_id, 
+            title=args.new_title,
+            body=args.content,
+            published=args.published,
+            position=args.position
+        )
+        
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error updating discussion: {e}")
+        return 1
+    
+    return 0
+
+
+def update_quiz(args):
+    """Update a quiz in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find quiz by title - quizzes use type "assessment_meta"
+    try:
+        quiz_assessments = generator.df[
+            (generator.df["type"] == "assessment_meta") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if quiz_assessments.empty:
+            print(f"Error: Quiz '{args.title}' not found in cartridge")
+            print("Available quizzes:")
+            all_quizzes = generator.df[
+                generator.df["type"] == "assessment_meta"
+            ]["title"].tolist()
+            if all_quizzes:
+                for quiz in all_quizzes:
+                    print(f"  - {quiz}")
+            else:
+                print("  (no quizzes found)")
+            return 1
+        
+        quiz_id = quiz_assessments.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding quiz: {e}")
+        return 1
+    
+    # Update quiz
+    try:
+        print(f"Updating quiz '{args.title}' in cartridge '{args.cartridge_name}'")
+        generator.update_quiz(
+            quiz_id, 
+            quiz_title=args.new_title,
+            quiz_description=args.description,
+            points=args.points,
+            published=args.published,
+            position=args.position
+        )
+        
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error updating quiz: {e}")
+        return 1
+    
+    return 0
+
+
 def delete_file(args):
     """Delete a file from an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
@@ -1052,6 +1182,25 @@ def main():
     update_file_parser.add_argument('--content', help='New file content (optional)')
     update_file_parser.add_argument('--position', type=int, help='Position in module (optional)')
     
+    # Update-discussion command
+    update_discussion_parser = subparsers.add_parser('update-discussion', help='Update a discussion in a cartridge')
+    update_discussion_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    update_discussion_parser.add_argument('--title', required=True, help='Current discussion title to update')
+    update_discussion_parser.add_argument('--new-title', help='New discussion title (optional)')
+    update_discussion_parser.add_argument('--content', help='New discussion content/body (optional)')
+    update_discussion_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
+    update_discussion_parser.add_argument('--position', type=int, help='Position in module (optional)')
+    
+    # Update-quiz command
+    update_quiz_parser = subparsers.add_parser('update-quiz', help='Update a quiz in a cartridge')
+    update_quiz_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    update_quiz_parser.add_argument('--title', required=True, help='Current quiz title to update')
+    update_quiz_parser.add_argument('--new-title', help='New quiz title (optional)')
+    update_quiz_parser.add_argument('--description', help='New quiz description (optional)')
+    update_quiz_parser.add_argument('--points', type=int, help='Points possible (optional)')
+    update_quiz_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
+    update_quiz_parser.add_argument('--position', type=int, help='Position in module (optional)')
+    
     # Delete-wiki command
     delete_wiki_parser = subparsers.add_parser('delete-wiki', help='Delete a wiki page from a cartridge')
     delete_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -1115,6 +1264,10 @@ def main():
         return update_assignment(args)
     elif args.command == 'update-file':
         return update_file(args)
+    elif args.command == 'update-discussion':
+        return update_discussion(args)
+    elif args.command == 'update-quiz':
+        return update_quiz(args)
     elif args.command == 'delete-wiki':
         return delete_wiki(args)
     elif args.command == 'delete-discussion':
