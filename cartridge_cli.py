@@ -550,6 +550,67 @@ def update_assignment(args):
     return 0
 
 
+def update_file(args):
+    """Update a file in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find file by filename - files use type "resource" and href contains web_resources/filename
+    try:
+        file_resources = generator.df[
+            (generator.df["type"] == "resource") & 
+            (generator.df["href"].str.contains(f"web_resources/{args.filename}", na=False))
+        ]
+        
+        if file_resources.empty:
+            print(f"Error: File '{args.filename}' not found in cartridge")
+            print("Available files:")
+            all_files = generator.df[
+                (generator.df["type"] == "resource") & 
+                (generator.df["href"].str.contains("web_resources/", na=False))
+            ]["href"].tolist()
+            if all_files:
+                for file_href in all_files:
+                    filename = file_href.split("/")[-1] if "/" in file_href else file_href
+                    print(f"  - {filename}")
+            else:
+                print("  (no files found)")
+            return 1
+        
+        file_id = file_resources.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding file: {e}")
+        return 1
+    
+    # Update file
+    try:
+        print(f"Updating file '{args.filename}' in cartridge '{args.cartridge_name}'")
+        generator.update_file(
+            file_id, 
+            filename=args.new_filename,
+            file_content=args.content,
+            position=args.position
+        )
+        
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error updating file: {e}")
+        return 1
+    
+    return 0
+
+
 def delete_wiki(args):
     """Delete a wiki page from an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
@@ -983,6 +1044,14 @@ def main():
     update_assignment_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
     update_assignment_parser.add_argument('--position', type=int, help='Position in module (optional)')
     
+    # Update-file command
+    update_file_parser = subparsers.add_parser('update-file', help='Update a file in a cartridge')
+    update_file_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    update_file_parser.add_argument('--filename', required=True, help='Current filename to update')
+    update_file_parser.add_argument('--new-filename', help='New filename (optional)')
+    update_file_parser.add_argument('--content', help='New file content (optional)')
+    update_file_parser.add_argument('--position', type=int, help='Position in module (optional)')
+    
     # Delete-wiki command
     delete_wiki_parser = subparsers.add_parser('delete-wiki', help='Delete a wiki page from a cartridge')
     delete_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -1044,6 +1113,8 @@ def main():
         return update_wiki(args)
     elif args.command == 'update-assignment':
         return update_assignment(args)
+    elif args.command == 'update-file':
+        return update_file(args)
     elif args.command == 'delete-wiki':
         return delete_wiki(args)
     elif args.command == 'delete-discussion':

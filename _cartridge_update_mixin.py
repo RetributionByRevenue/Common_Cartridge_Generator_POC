@@ -557,12 +557,31 @@ class CartridgeUpdateMixin:
         
         # Update the file properties
         if filename is not None:
+            old_path = file_info['path']
             file_info['filename'] = filename
             # Update path to match new filename
-            file_info['path'] = f"web_resources/{filename}"
+            new_path = f"web_resources/{filename}"
+            file_info['path'] = new_path
+            
+            # Rename the file on disk if filename changed
+            if self.output_dir and old_path != new_path:
+                import os
+                from pathlib import Path
+                old_file_path = os.path.join(self.output_dir, old_path)
+                new_file_path = os.path.join(self.output_dir, new_path)
+                if os.path.exists(old_file_path):
+                    # Ensure new directory exists
+                    Path(new_file_path).parent.mkdir(parents=True, exist_ok=True)
+                    os.rename(old_file_path, new_file_path)
         
         if file_content is not None:
             file_info['content'] = file_content
+            
+            # Write the content directly to the file if we have output_dir
+            if self.output_dir:
+                from pathlib import Path
+                file_path = Path(self.output_dir) / file_info['path']
+                self._create_web_resource_file(Path(self.output_dir), file_info)
         
         # Update filename references in modules and organization items
         if filename is not None and filename != old_filename:
