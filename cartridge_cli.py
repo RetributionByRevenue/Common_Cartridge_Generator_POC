@@ -722,6 +722,57 @@ def delete_file(args):
     return 0
 
 
+def delete_module(args):
+    """Delete a module and all its contents from an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find module by title
+    try:
+        module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.title)]
+        if module_row.empty:
+            print(f"Error: Module '{args.title}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            if modules:
+                for module in modules:
+                    print(f"  - {module}")
+            else:
+                print("  (no modules found)")
+            return 1
+        
+        module_id = module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding module: {e}")
+        return 1
+    
+    # Delete module
+    try:
+        print(f"Deleting module '{args.title}' and all its contents from cartridge '{args.cartridge_name}'")
+        generator.delete_module_by_id(module_id)
+        
+        print(f"✓ Module '{args.title}' and all its contents deleted successfully")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error deleting module: {e}")
+        return 1
+    
+    return 0
+
+
+
+
 def package_cartridge(args):
     """Package cartridge into a zip file"""
     cartridge_path = Path(args.cartridge_name)
@@ -793,6 +844,7 @@ def main():
     file_parser.add_argument('--filename', required=True, help='Filename')
     file_parser.add_argument('--content', required=True, help='File content')
     
+    
     # List command
     list_parser = subparsers.add_parser('list', help='List contents of a cartridge')
     list_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -821,6 +873,11 @@ def main():
     delete_file_parser = subparsers.add_parser('delete-file', help='Delete a file from a cartridge')
     delete_file_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
     delete_file_parser.add_argument('--filename', required=True, help='Filename to delete (e.g., "filename.txt")')
+    
+    # Delete-module command
+    delete_module_parser = subparsers.add_parser('delete-module', help='Delete a module and all its contents from a cartridge')
+    delete_module_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    delete_module_parser.add_argument('--title', required=True, help='Module title to delete')
     
     # Package command
     package_parser = subparsers.add_parser('package', help='Package cartridge into ZIP file')
@@ -859,6 +916,8 @@ def main():
         return delete_quiz(args)
     elif args.command == 'delete-file':
         return delete_file(args)
+    elif args.command == 'delete-module':
+        return delete_module(args)
     elif args.command == 'package':
         return package_cartridge(args)
     else:
