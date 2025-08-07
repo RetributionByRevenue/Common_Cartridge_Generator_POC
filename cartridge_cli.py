@@ -489,6 +489,67 @@ def update_wiki(args):
     return 0
 
 
+def update_assignment(args):
+    """Update an assignment in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find assignment by title
+    try:
+        assignment_settings = generator.df[
+            (generator.df["type"] == "assignment_settings") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if assignment_settings.empty:
+            print(f"Error: Assignment '{args.title}' not found in cartridge")
+            print("Available assignments:")
+            all_assignments = generator.df[
+                generator.df["type"] == "assignment_settings"
+            ]["title"].tolist()
+            if all_assignments:
+                for assignment in all_assignments:
+                    print(f"  - {assignment}")
+            else:
+                print("  (no assignments found)")
+            return 1
+        
+        assignment_id = assignment_settings.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding assignment: {e}")
+        return 1
+    
+    # Update assignment
+    try:
+        print(f"Updating assignment '{args.title}' in cartridge '{args.cartridge_name}'")
+        generator.update_assignment(
+            assignment_id, 
+            assignment_title=args.new_title,
+            assignment_content=args.content,
+            points=args.points,
+            published=args.published,
+            position=args.position
+        )
+        
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error updating assignment: {e}")
+        return 1
+    
+    return 0
+
+
 def delete_wiki(args):
     """Delete a wiki page from an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
@@ -912,6 +973,16 @@ def main():
     update_wiki_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
     update_wiki_parser.add_argument('--position', type=int, help='Position in module (optional)')
     
+    # Update-assignment command
+    update_assignment_parser = subparsers.add_parser('update-assignment', help='Update an assignment in a cartridge')
+    update_assignment_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    update_assignment_parser.add_argument('--title', required=True, help='Current assignment title to update')
+    update_assignment_parser.add_argument('--new-title', help='New assignment title (optional)')
+    update_assignment_parser.add_argument('--content', help='New assignment content (optional)')
+    update_assignment_parser.add_argument('--points', type=int, help='Points possible (optional)')
+    update_assignment_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
+    update_assignment_parser.add_argument('--position', type=int, help='Position in module (optional)')
+    
     # Delete-wiki command
     delete_wiki_parser = subparsers.add_parser('delete-wiki', help='Delete a wiki page from a cartridge')
     delete_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -971,6 +1042,8 @@ def main():
         return list_cartridge(args)
     elif args.command == 'update-wiki':
         return update_wiki(args)
+    elif args.command == 'update-assignment':
+        return update_assignment(args)
     elif args.command == 'delete-wiki':
         return delete_wiki(args)
     elif args.command == 'delete-discussion':

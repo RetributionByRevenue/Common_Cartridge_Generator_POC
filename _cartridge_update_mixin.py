@@ -190,6 +190,13 @@ class CartridgeUpdateMixin:
         if published is not None:
             assignment['workflow_state'] = 'published' if published else 'unpublished'
         
+        # Write the content directly to files if we have output_dir and any content changed
+        if self.output_dir and (assignment_title is not None or assignment_content is not None or points is not None or published is not None):
+            from pathlib import Path
+            assignment_dir = Path(self.output_dir) / assignment['identifier']
+            if assignment_dir.exists():
+                self._create_assignment_files(Path(self.output_dir), assignment)
+        
         # Update position if specified and assignment is part of a module
         if position is not None and old_position is not None:
             # Find the module containing this assignment
