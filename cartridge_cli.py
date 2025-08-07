@@ -435,6 +435,60 @@ def list_cartridge(args):
     return 0
 
 
+def update_wiki(args):
+    """Update a wiki page in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find wiki page by title
+    try:
+        wiki_pages = generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == args.title)]
+        if wiki_pages.empty:
+            print(f"Error: Wiki page '{args.title}' not found in cartridge")
+            print("Available wiki pages:")
+            all_wiki_pages = generator.df[generator.df["type"] == "wiki_page"]["title"].tolist()
+            if all_wiki_pages:
+                for page in all_wiki_pages:
+                    print(f"  - {page}")
+            else:
+                print("  (no wiki pages found)")
+            return 1
+        
+        wiki_page_id = wiki_pages.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding wiki page: {e}")
+        return 1
+    
+    # Update wiki page
+    try:
+        print(f"Updating wiki page '{args.title}' in cartridge '{args.cartridge_name}'")
+        generator.update_wiki(
+            wiki_page_id, 
+            page_title=args.new_title,
+            page_content=args.content,
+            published=args.published,
+            position=args.position
+        )
+        
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error updating wiki page: {e}")
+        return 1
+    
+    return 0
+
+
 def delete_wiki(args):
     """Delete a wiki page from an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
@@ -849,6 +903,15 @@ def main():
     list_parser = subparsers.add_parser('list', help='List contents of a cartridge')
     list_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
     
+    # Update-wiki command
+    update_wiki_parser = subparsers.add_parser('update-wiki', help='Update a wiki page in a cartridge')
+    update_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    update_wiki_parser.add_argument('--title', required=True, help='Current wiki page title to update')
+    update_wiki_parser.add_argument('--new-title', help='New wiki page title (optional)')
+    update_wiki_parser.add_argument('--content', help='New wiki page content (optional)')
+    update_wiki_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
+    update_wiki_parser.add_argument('--position', type=int, help='Position in module (optional)')
+    
     # Delete-wiki command
     delete_wiki_parser = subparsers.add_parser('delete-wiki', help='Delete a wiki page from a cartridge')
     delete_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -906,6 +969,8 @@ def main():
         return add_file(args)
     elif args.command == 'list':
         return list_cartridge(args)
+    elif args.command == 'update-wiki':
+        return update_wiki(args)
     elif args.command == 'delete-wiki':
         return delete_wiki(args)
     elif args.command == 'delete-discussion':

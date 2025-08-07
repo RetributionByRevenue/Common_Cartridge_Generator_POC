@@ -31,12 +31,38 @@ class CartridgeUpdateMixin:
         
         # Update the wiki page properties
         if page_title is not None:
+            old_filename = wiki_page['filename']
             wiki_page['title'] = page_title
             # Update filename to match new title
-            wiki_page['filename'] = f"wiki_content/{page_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            new_filename = f"wiki_content/{page_title.lower().replace(' ', '-').replace('_', '-')}.html"
+            wiki_page['filename'] = new_filename
+            
+            # Also update the corresponding resource's href
+            for resource in self.resources:
+                if resource['identifier'] == wiki_page['resource_id']:
+                    resource['href'] = new_filename
+                    break
+            
+            # Rename the file on disk if filename changed
+            if self.output_dir and old_filename != new_filename:
+                import os
+                from pathlib import Path
+                old_file_path = os.path.join(self.output_dir, old_filename)
+                new_file_path = Path(self.output_dir) / new_filename
+                if os.path.exists(old_file_path):
+                    os.rename(old_file_path, new_file_path)
+                    # Update the content with the new title
+                    self._create_wiki_page_html(new_file_path, wiki_page)
         
         if page_content is not None:
             wiki_page['content'] = page_content
+            
+            # Write the content directly to the file if we have output_dir
+            if self.output_dir:
+                import os
+                from pathlib import Path
+                file_path = Path(self.output_dir) / wiki_page['filename']
+                self._create_wiki_page_html(file_path, wiki_page)
         
         if published is not None:
             wiki_page['workflow_state'] = 'published' if published else 'unpublished'
