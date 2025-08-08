@@ -489,6 +489,370 @@ def update_wiki(args):
     return 0
 
 
+def copy_wiki(args):
+    """Copy a wiki page to another module in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find wiki page by title
+    try:
+        wiki_pages = generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == args.title)]
+        if wiki_pages.empty:
+            print(f"Error: Wiki page '{args.title}' not found in cartridge")
+            print("Available wiki pages:")
+            all_wiki_pages = generator.df[generator.df["type"] == "wiki_page"]["title"].tolist()
+            if all_wiki_pages:
+                for page in all_wiki_pages:
+                    print(f"  - {page}")
+            else:
+                print("  (no wiki pages found)")
+            return 1
+        
+        selected_wiki = wiki_pages.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding wiki page: {e}")
+        return 1
+    
+    # Find target module by title
+    try:
+        target_module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.target_module)]
+        if target_module_row.empty:
+            print(f"Error: Target module '{args.target_module}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            for module in modules:
+                print(f"  - {module}")
+            return 1
+        
+        target_module_id = target_module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding target module: {e}")
+        return 1
+    
+    # Copy wiki page to target module
+    try:
+        print(f"Copying wiki page '{args.title}' to module '{args.target_module}' in cartridge '{args.cartridge_name}'")
+        new_wiki_id = generator.copy_wiki_page(selected_wiki, target_module_id)
+        
+        print(f"✓ Wiki page '{args.title}' copied successfully")
+        print(f"  New wiki ID: {new_wiki_id}")
+        print(f"  Target module: {args.target_module}")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error copying wiki page: {e}")
+        return 1
+    
+    return 0
+
+
+def copy_assignment(args):
+    """Copy an assignment to another module in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find assignment by title
+    try:
+        assignments = generator.df[(generator.df["type"] == "assignment_settings") & (generator.df["title"] == args.title)]
+        if assignments.empty:
+            print(f"Error: Assignment '{args.title}' not found in cartridge")
+            print("Available assignments:")
+            all_assignments = generator.df[generator.df["type"] == "assignment_settings"]["title"].tolist()
+            if all_assignments:
+                for assignment in all_assignments:
+                    print(f"  - {assignment}")
+            else:
+                print("  (no assignments found)")
+            return 1
+        
+        selected_assignment = assignments.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding assignment: {e}")
+        return 1
+    
+    # Find target module by title
+    try:
+        target_module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.target_module)]
+        if target_module_row.empty:
+            print(f"Error: Target module '{args.target_module}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            for module in modules:
+                print(f"  - {module}")
+            return 1
+        
+        target_module_id = target_module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding target module: {e}")
+        return 1
+    
+    # Copy assignment to target module
+    try:
+        print(f"Copying assignment '{args.title}' to module '{args.target_module}' in cartridge '{args.cartridge_name}'")
+        new_assignment_id = generator.copy_assignment(selected_assignment, target_module_id)
+        
+        print(f"✓ Assignment '{args.title}' copied successfully")
+        print(f"  New assignment ID: {new_assignment_id}")
+        print(f"  Target module: {args.target_module}")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error copying assignment: {e}")
+        return 1
+    
+    return 0
+
+
+def copy_discussion(args):
+    """Copy a discussion to another module in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find discussion by title - discussions use module items with Discussion content type
+    try:
+        discussion_items = generator.df[
+            (generator.df["type"] == "module_item") & 
+            (generator.df["title"] == args.title) &
+            (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+        ]
+        
+        if discussion_items.empty:
+            print(f"Error: Discussion '{args.title}' not found in cartridge")
+            print("Available discussions:")
+            all_discussions = generator.df[
+                (generator.df["type"] == "module_item") & 
+                (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+            ]["title"].tolist()
+            if all_discussions:
+                for discussion in all_discussions:
+                    print(f"  - {discussion}")
+            else:
+                print("  (no discussions found)")
+            return 1
+        
+        # Get the identifierref from the module item to find the actual discussion resource
+        discussion_item = discussion_items.iloc[0]
+        selected_discussion = discussion_item["identifierref"]
+        
+    except Exception as e:
+        print(f"Error finding discussion: {e}")
+        return 1
+    
+    # Find target module by title
+    try:
+        target_module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.target_module)]
+        if target_module_row.empty:
+            print(f"Error: Target module '{args.target_module}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            for module in modules:
+                print(f"  - {module}")
+            return 1
+        
+        target_module_id = target_module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding target module: {e}")
+        return 1
+    
+    # Copy discussion to target module
+    try:
+        print(f"Copying discussion '{args.title}' to module '{args.target_module}' in cartridge '{args.cartridge_name}'")
+        new_discussion_id = generator.copy_discussion(selected_discussion, target_module_id)
+        
+        print(f"✓ Discussion '{args.title}' copied successfully")
+        print(f"  New discussion ID: {new_discussion_id}")
+        print(f"  Target module: {args.target_module}")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error copying discussion: {e}")
+        return 1
+    
+    return 0
+
+
+def copy_quiz(args):
+    """Copy a quiz to another module in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find quiz by title - quizzes use type "assessment_meta"
+    try:
+        quiz_assessments = generator.df[
+            (generator.df["type"] == "assessment_meta") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if quiz_assessments.empty:
+            print(f"Error: Quiz '{args.title}' not found in cartridge")
+            print("Available quizzes:")
+            all_quizzes = generator.df[
+                generator.df["type"] == "assessment_meta"
+            ]["title"].tolist()
+            if all_quizzes:
+                for quiz in all_quizzes:
+                    print(f"  - {quiz}")
+            else:
+                print("  (no quizzes found)")
+            return 1
+        
+        selected_quiz = quiz_assessments.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding quiz: {e}")
+        return 1
+    
+    # Find target module by title
+    try:
+        target_module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.target_module)]
+        if target_module_row.empty:
+            print(f"Error: Target module '{args.target_module}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            for module in modules:
+                print(f"  - {module}")
+            return 1
+        
+        target_module_id = target_module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding target module: {e}")
+        return 1
+    
+    # Copy quiz to target module
+    try:
+        print(f"Copying quiz '{args.title}' to module '{args.target_module}' in cartridge '{args.cartridge_name}'")
+        new_quiz_id = generator.copy_quiz(selected_quiz, target_module_id)
+        
+        print(f"✓ Quiz '{args.title}' copied successfully")
+        print(f"  New quiz ID: {new_quiz_id}")
+        print(f"  Target module: {args.target_module}")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error copying quiz: {e}")
+        return 1
+    
+    return 0
+
+
+def copy_file(args):
+    """Copy a file to another module in an existing cartridge"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find file by filename - files use type "resource" and href contains web_resources/filename
+    try:
+        file_resources = generator.df[
+            (generator.df["type"] == "resource") & 
+            (generator.df["href"].str.contains(f"web_resources/{args.filename}", na=False))
+        ]
+        
+        if file_resources.empty:
+            print(f"Error: File '{args.filename}' not found in cartridge")
+            print("Available files:")
+            all_files = generator.df[
+                (generator.df["type"] == "resource") & 
+                (generator.df["href"].str.contains("web_resources/", na=False))
+            ]["href"].tolist()
+            if all_files:
+                for file_href in all_files:
+                    filename = file_href.split("/")[-1] if "/" in file_href else file_href
+                    print(f"  - {filename}")
+            else:
+                print("  (no files found)")
+            return 1
+        
+        selected_file = file_resources.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding file: {e}")
+        return 1
+    
+    # Find target module by title
+    try:
+        target_module_row = generator.df[(generator.df["type"] == "module") & (generator.df["title"] == args.target_module)]
+        if target_module_row.empty:
+            print(f"Error: Target module '{args.target_module}' not found in cartridge")
+            print("Available modules:")
+            modules = generator.df[generator.df["type"] == "module"]["title"].tolist()
+            for module in modules:
+                print(f"  - {module}")
+            return 1
+        
+        target_module_id = target_module_row.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding target module: {e}")
+        return 1
+    
+    # Copy file to target module
+    try:
+        print(f"Copying file '{args.filename}' to module '{args.target_module}' in cartridge '{args.cartridge_name}'")
+        new_file_id = generator.copy_file(selected_file, target_module_id)
+        
+        print(f"✓ File '{args.filename}' copied successfully")
+        print(f"  New file ID: {new_file_id}")
+        print(f"  Target module: {args.target_module}")
+        print(f"  Total components: {len(generator.df)}")
+        
+    except Exception as e:
+        print(f"Error copying file: {e}")
+        return 1
+    
+    return 0
+
+
 def update_assignment(args):
     """Update an assignment in an existing cartridge"""
     cartridge_path = Path(args.cartridge_name)
@@ -1218,6 +1582,36 @@ def main():
     update_wiki_parser.add_argument('--published', type=lambda x: x.lower() == 'true', help='Published status (true/false, optional)')
     update_wiki_parser.add_argument('--position', type=int, help='Position in module (optional)')
     
+    # Copy-wiki command
+    copy_wiki_parser = subparsers.add_parser('copy-wiki', help='Copy a wiki page to another module in a cartridge')
+    copy_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    copy_wiki_parser.add_argument('--title', required=True, help='Wiki page title to copy')
+    copy_wiki_parser.add_argument('--target-module', required=True, help='Target module title to copy wiki page to')
+    
+    # Copy-assignment command
+    copy_assignment_parser = subparsers.add_parser('copy-assignment', help='Copy an assignment to another module in a cartridge')
+    copy_assignment_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    copy_assignment_parser.add_argument('--title', required=True, help='Assignment title to copy')
+    copy_assignment_parser.add_argument('--target-module', required=True, help='Target module title to copy assignment to')
+    
+    # Copy-discussion command
+    copy_discussion_parser = subparsers.add_parser('copy-discussion', help='Copy a discussion to another module in a cartridge')
+    copy_discussion_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    copy_discussion_parser.add_argument('--title', required=True, help='Discussion title to copy')
+    copy_discussion_parser.add_argument('--target-module', required=True, help='Target module title to copy discussion to')
+    
+    # Copy-quiz command
+    copy_quiz_parser = subparsers.add_parser('copy-quiz', help='Copy a quiz to another module in a cartridge')
+    copy_quiz_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    copy_quiz_parser.add_argument('--title', required=True, help='Quiz title to copy')
+    copy_quiz_parser.add_argument('--target-module', required=True, help='Target module title to copy quiz to')
+    
+    # Copy-file command
+    copy_file_parser = subparsers.add_parser('copy-file', help='Copy a file to another module in a cartridge')
+    copy_file_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    copy_file_parser.add_argument('--filename', required=True, help='Filename to copy')
+    copy_file_parser.add_argument('--target-module', required=True, help='Target module title to copy file to')
+    
     # Update-assignment command
     update_assignment_parser = subparsers.add_parser('update-assignment', help='Update an assignment in a cartridge')
     update_assignment_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -1320,6 +1714,16 @@ def main():
         return list_cartridge(args)
     elif args.command == 'update-wiki':
         return update_wiki(args)
+    elif args.command == 'copy-wiki':
+        return copy_wiki(args)
+    elif args.command == 'copy-assignment':
+        return copy_assignment(args)
+    elif args.command == 'copy-discussion':
+        return copy_discussion(args)
+    elif args.command == 'copy-quiz':
+        return copy_quiz(args)
+    elif args.command == 'copy-file':
+        return copy_file(args)
     elif args.command == 'update-assignment':
         return update_assignment(args)
     elif args.command == 'update-file':
