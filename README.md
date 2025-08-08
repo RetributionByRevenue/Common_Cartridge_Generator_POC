@@ -6,77 +6,80 @@ This tool generates Canvas Common Cartridge packages with various content types.
 
 **Examples:**
 ```bash
-#add and delete test
-rm -rf ./test_cartridge && rm -rf ./table_inspect.html
+  # Remove existing test cartridge if it exists
+  rm -rf test_cartridge
 
-#create cartridge
-.venv/bin/python cartridge_cli.py create test_cartridge --title "Test Course" --code   "TEST101"
+  # Create base cartridge
+  .venv/bin/python cartridge_cli.py create test_cartridge --title "Comprehensive Test Course" --code "TEST101"
 
-#create module
-.venv/bin/python cartridge_cli.py add-module test_cartridge --title "Week 1"   --position 1 --published true
+  # === MODULE 1: TESTING ADDING FUNCTIONALITY ===
+  .venv/bin/python cartridge_cli.py add-module test_cartridge --title "testing adding functionality" --position 1
 
-#add discussion
-.venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "My Discussion Topic 88" --description "Lets talk abou8t the birds and the bees."
-.venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "Week 1" --title "My Discussion Topic 3" --description "Lets talk about the birds and the bees."
+  # Add 5 content types to testing adding functionality module
+  .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "testing adding functionality" --title "Test Wiki" --content "This is a test wiki page"
+  .venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "testing adding functionality" --title "Test Assignment" --content "This is a test assignment" --points 100
+  .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "testing adding functionality" --title "Test Discussion" --description "This is a test discussion"
+  .venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "testing adding functionality" --title "Test Quiz" --description "This is a test quiz" --points 50
+  .venv/bin/python cartridge_cli.py add-file test_cartridge --module "testing adding functionality" --filename "test-file.txt" --content "This is a test file"
 
-#delete discussion
-.venv/bin/python cartridge_cli.py delete-discussion test_cartridge --title "My Discussion Topic 3"
+  # === MODULE 2: TESTING DELETE FUNCTIONALITY ===
+  .venv/bin/python cartridge_cli.py add-module test_cartridge --title "testing delete functionality" --position 2
 
-#add wiki page
-.venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "booga2" --content "This is a test wiki page that we will delete."
-.venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "Week 1" --title "depressed wiki page" --content "This is a test wiki page that we will delete."
+  # Add 5 content types to testing delete functionality module
+  .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "testing delete functionality" --title "Delete Wiki" --content "This wiki will be deleted"
+  .venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "testing delete functionality" --title "Delete Assignment" --content "This assignment will be deleted" --points 75
+  .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "testing delete functionality" --title "Delete Discussion" --description "This discussion will be deleted"
+  .venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "testing delete functionality" --title "Delete Quiz" --description "This quiz will be deleted" --points 25
+  .venv/bin/python cartridge_cli.py add-file test_cartridge --module "testing delete functionality" --filename "delete-file.txt" --content "This file will be deleted"
 
-#delete wiki page
-.venv/bin/python cartridge_cli.py delete-wiki test_cartridge  --title "booga2" 
+  # Delete all 5 content types from testing delete functionality module (should be empty at the end)
+  .venv/bin/python cartridge_cli.py delete-wiki test_cartridge --title "Delete Wiki"
+  .venv/bin/python cartridge_cli.py delete-assignment test_cartridge --title "Delete Assignment"
+  .venv/bin/python cartridge_cli.py delete-discussion test_cartridge --title "Delete Discussion"
+  .venv/bin/python cartridge_cli.py delete-quiz test_cartridge --title "Delete Quiz"
+  .venv/bin/python cartridge_cli.py delete-file test_cartridge --filename "delete-file.txt"
 
-#add  assignment 
-.venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "Week 1"  --title "Assignment 2" --content "Write and essay on the history of pokemon." --points 50
-.venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "Week 1"  --title "Assignment 1" --content "Write a essay on why the sky is blue" --points 50
+  # === MODULE 3: TESTING UPDATE FUNCTIONALITY ===
+  .venv/bin/python cartridge_cli.py add-module test_cartridge --title "testing update functionality" --position 3
 
-#delete assignment
-#.venv/bin/python cartridge_cli.py delete-assignment test_cartridge --title "Assignment 2"
+  # Add 5 content types to testing update functionality module
+  .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "testing update functionality" --title "Update Wiki" --content "Original wiki content"
+  .venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "testing update functionality" --title "Update Assignment" --content "Original assignment content" --points 80
+  .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "testing update functionality" --title "Update Discussion" --description "Original discussion content"
+  .venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "testing update functionality" --title "Update Quiz" --description "Original quiz content" --points 40
+  .venv/bin/python cartridge_cli.py add-file test_cartridge --module "testing update functionality" --filename "update-file.txt" --content "Original file content"
 
-#add file
-.venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document3.txt" --content "File content here"
-.venv/bin/python cartridge_cli.py add-file test_cartridge --module "Week 1" --filename "document33.txt" --content "File content here"
+  # Update all 5 content types in testing update functionality module
+  .venv/bin/python cartridge_cli.py update-wiki test_cartridge --title "Update Wiki" --new-title "Updated Wiki Title" --content "UPDATED wiki content" --position 1
+  .venv/bin/python cartridge_cli.py update-assignment test_cartridge --title "Update Assignment" --new-title "Updated Assignment Title" --content "UPDATED assignment content" --points 150 --position 2
+  .venv/bin/python cartridge_cli.py update-discussion test_cartridge --title "Update Discussion" --new-title "Updated Discussion Title" --content "UPDATED discussion content" --position 3
+  .venv/bin/python cartridge_cli.py update-quiz test_cartridge --title "Update Quiz" --new-title "Updated Quiz Title" --description "UPDATED quiz content" --points 60 --position 4
+  .venv/bin/python cartridge_cli.py update-file test_cartridge --filename "update-file.txt" --new-filename "updated-file.txt" --content "UPDATED file content" --position 5
 
-#delete file
-.venv/bin/python cartridge_cli.py delete-file test_cartridge --filename "document33.txt"
+  # === MODULE 4 & 5: TESTING COPY FUNCTIONALITY ===
+  .venv/bin/python cartridge_cli.py add-module test_cartridge --title "init_module_a" --position 4
+  .venv/bin/python cartridge_cli.py add-module test_cartridge --title "init_module_b" --position 5
 
-#add quiz
-.venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "Week 1" --title "Test Quiz 1" --description "This is a test quiz" --points 10
-.venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "Week 1" --title "Test Quiz 2" --description "This is a test quiz" --points 10
+  # Add 5 content types to init_module_a
+  .venv/bin/python cartridge_cli.py add-wiki test_cartridge --module "init_module_a" --title "Copy Wiki" --content "This wiki will be copied"
+  .venv/bin/python cartridge_cli.py add-assignment test_cartridge --module "init_module_a" --title "Copy Assignment" --content "This assignment will be copied" --points 90
+  .venv/bin/python cartridge_cli.py add-discussion test_cartridge --module "init_module_a" --title "Copy Discussion" --description "This discussion will be copied"
+  .venv/bin/python cartridge_cli.py add-quiz test_cartridge --module "init_module_a" --title "Copy Quiz" --description "This quiz will be copied" --points 35
+  .venv/bin/python cartridge_cli.py add-file test_cartridge --module "init_module_a" --filename "copy-file.txt" --content "This file will be copied"
 
-#delete quiz
-.venv/bin/python cartridge_cli.py delete-quiz test_cartridge --title "Test Quiz 1"
+  # Copy all 5 content types from init_module_a to init_module_b
+  .venv/bin/python cartridge_cli.py copy-wiki test_cartridge --title "Copy Wiki" --target-module "init_module_b"
+  .venv/bin/python cartridge_cli.py copy-assignment test_cartridge --title "Copy Assignment" --target-module "init_module_b"
+  .venv/bin/python cartridge_cli.py copy-discussion test_cartridge --title "Copy Discussion" --target-module "init_module_b"
+  .venv/bin/python cartridge_cli.py copy-quiz test_cartridge --title "Copy Quiz" --target-module "init_module_b"
+  .venv/bin/python cartridge_cli.py copy-file test_cartridge --filename "copy-file.txt" --target-module "init_module_b"
 
-#end
-.venv/bin/python cartridge_cli.py package test_cartridge #create table for inspection
-.venv/bin/python cartridge_cli.py list test_cartridge
+  # === LIST AND ZIP ===
+  # List final cartridge contents
+  .venv/bin/python cartridge_cli.py list test_cartridge
 
-
-    Left to Port:
-    # Update wiki page
-    generator.update_wiki(selected_wiki, page_title="New Title", page_content="New content", published=True)
-    # Update assignment
-    generator.update_assignment(selected_assignment, assignment_title="New Title", assignment_content="New content", points=150, published=True)
-    # Update quiz
-    generator.update_quiz(selected_quiz, quiz_title="New Title", quiz_description="New description", points=5, published=True)
-    # Update discussion
-    generator.update_discussion(selected_discussion, title="New Title", body="New content", published=True)
-    # Update file
-    generator.update_file(selected_file, filename="new_file.txt", file_content="New content")
-    
-    #copy wiki page to new module
-    generator.copy_wiki_page(selected_wiki, selected_module_2_id)
-    #copy assignment to new module
-    generator.copy_assignment(selected_assignment, selected_module_2_id)
-    #copy quiz to new module
-    generator.copy_quiz(selected_quiz, selected_module_2_id)
-    #copy discussion to new module
-    generator.copy_discussion(selected_discussion, selected_module_2_id)
-    #copy file to new module
-    generator.copy_file(selected_file, selected_module_2_id)
+  # Package cartridge into ZIP file
+  .venv/bin/python cartridge_cli.py package test_cartridge
 ```
 ## Copying
 
