@@ -1,34 +1,5 @@
 #!/usr/bin/env python3
-# Command to run this file: /home/q/Desktop/test_cartridge/.venv/bin/python cartridge_generator.py generated_cartridge
-"""
-Canvas Common Cartridge Generator
-Generates a complete Common Cartridge with all content types from scratch
-
-USAGE EXAMPLES:
-    # Basic generation with default course
-    python cartridge_generator.py my_new_cartridge
-    
-    # Generate with custom course title and code
-    python cartridge_generator.py generated_course --title "Introduction to Python" --code "CS101"
-    
-    # Scan existing cartridge and load into DataFrame
-    python cartridge_generator.py generated_cartridge --scan
-    
-    # Real-world example - generate new
-    python cartridge_generator.py biology_101 --title "Biology Fundamentals" --code "BIO101"
-    
-    # Real-world example - scan existing
-    python cartridge_generator.py existing_course_export --scan
-
-WHAT IT CREATES:
-    - Complete cartridge directory structure with all Canvas XML files
-    - Sample module with wiki page
-    - Sample assignment with HTML content and settings
-    - Sample quiz with QTI assessment and multiple choice question
-    - Sample announcement with proper topic/meta structure
-    - Sample web resource file
-    - Full imsmanifest.xml with proper resource dependencies
-"""
+# Command to run this file: /home/q/Desktop/test_cartridge/.venv/bin/python cartridge_generator.py generated_cartridge (deprecated)
 
 import os
 import uuid
