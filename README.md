@@ -79,6 +79,26 @@ This README provides example commands for using `cartridge_cli.py` to create and
 .venv/bin/python cartridge_cli.py copy-file test_cartridge --filename "copy-file.txt" --target-module "init_module_b"
 ```
 
+## Display
+
+**Examples:**
+```bash
+#display wiki page
+.venv/bin/python cartridge_cli.py display-wiki test_cartridge --title "Copy Wiki"
+
+#display assignment
+.venv/bin/python cartridge_cli.py display-assignment test_cartridge --title "Copy Assignment"
+
+#display discussion
+.venv/bin/python cartridge_cli.py display-discussion test_cartridge --title "Copy Discussion" 
+
+#display quiz
+.venv/bin/python cartridge_cli.py display-quiz test_cartridge --title "Copy Quiz"
+
+#display file
+.venv/bin/python cartridge_cli.py display-file test_cartridge --filename "copy-file.txt"
+```
+
 ## 📦 Package & List Cartridge
 
 <table>
@@ -165,7 +185,7 @@ This README provides example commands for using `cartridge_cli.py` to create and
 ```
 
 # Canvas Import Result
-<img src="https://raw.githubusercontent.com/RetributionByRevenue/Common_Cartridge_Generator_POC/refs/heads/main/Screenshot_2025-07-24_14-30-26.png">
+<img src="https://raw.githubusercontent.com/RetributionByRevenue/Common_Cartridge_Generator_POC/refs/heads/main/Screenshot_2025-08-09_19-14-05.png">
 
 # Canvas Common Cartridge Methods Documentation
 
