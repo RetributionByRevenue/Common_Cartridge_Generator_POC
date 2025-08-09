@@ -33,7 +33,8 @@ class CartridgeHydratorMixin:
             print(f"Error: {cartridge_path} does not contain imsmanifest.xml - not a valid cartridge")
             return False
         
-        print(f"Hydrating from existing cartridge: {cartridge_path}")
+        if getattr(self, 'verbose', True):
+            print(f"Hydrating from existing cartridge: {cartridge_path}")
         
         # Set output directory to the existing cartridge
         self.output_dir = str(cartridge_path)
@@ -51,8 +52,9 @@ class CartridgeHydratorMixin:
         # Hydrate internal data structures from DataFrame
         self._hydrate_internal_structures()
         
-        print(f"Cartridge hydrated successfully. Found {len(self.current_df)} components.")
-        print(f"Component types: {dict(self.current_df['type'].value_counts())}")
+        if getattr(self, 'verbose', True):
+            print(f"Cartridge hydrated successfully. Found {len(self.current_df)} components.")
+            print(f"Component types: {dict(self.current_df['type'].value_counts())}")
         
         return True
     
@@ -85,7 +87,8 @@ class CartridgeHydratorMixin:
                 except ET.ParseError:
                     print("Warning: Could not parse course_settings.xml")
         
-        print(f"Course info - Title: '{self.course_title}', Code: '{self.course_code}', ID: '{self.course_id}'")
+        if getattr(self, 'verbose', True):
+            print(f"Course info - Title: '{self.course_title}', Code: '{self.course_code}', ID: '{self.course_id}'")
     
     def _hydrate_internal_structures(self):
         """Hydrate internal data structures from the DataFrame"""
@@ -437,7 +440,8 @@ class CartridgeHydratorMixin:
             }
             self.files.append(file_info)
         
-        print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions, {len(self.assignments)} assignments, {len(self.quizzes)} quizzes, {len(self.files)} files")
+        if getattr(self, 'verbose', True):
+            print(f"Hydrated {len(self.modules)} modules, {len(self.resources)} resources, {len(self.wiki_pages)} wiki pages, {len(self.announcements)} discussions, {len(self.assignments)} assignments, {len(self.quizzes)} quizzes, {len(self.files)} files")
     
     def _extract_content_from_html(self, html_content):
         """Extract body content from HTML"""

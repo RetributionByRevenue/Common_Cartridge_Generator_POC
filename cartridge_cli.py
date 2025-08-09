@@ -42,7 +42,7 @@ def add_module(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -69,7 +69,7 @@ def add_wiki(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -112,7 +112,7 @@ def add_assignment(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -156,7 +156,7 @@ def add_quiz(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -200,7 +200,7 @@ def add_discussion(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -243,7 +243,7 @@ def add_file(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -286,7 +286,7 @@ def list_cartridge(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -444,7 +444,7 @@ def update_wiki(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -498,7 +498,7 @@ def copy_wiki(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -566,7 +566,7 @@ def copy_assignment(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -634,7 +634,7 @@ def copy_discussion(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -712,7 +712,7 @@ def copy_quiz(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -786,7 +786,7 @@ def copy_file(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -862,7 +862,7 @@ def update_assignment(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -923,7 +923,7 @@ def update_file(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -984,7 +984,7 @@ def delete_wiki(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1033,7 +1033,7 @@ def delete_discussion(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1099,7 +1099,7 @@ def delete_assignment(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1155,7 +1155,7 @@ def delete_quiz(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1211,7 +1211,7 @@ def update_discussion(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1280,7 +1280,7 @@ def update_quiz(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1341,7 +1341,7 @@ def update_module(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1395,7 +1395,7 @@ def delete_file(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1455,7 +1455,7 @@ def delete_module(args):
         return 1
     
     # Load existing cartridge
-    generator = CartridgeGenerator("temp", "temp")  # Will be overridden during hydration
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
         print("Failed to load existing cartridge")
         return 1
@@ -1490,6 +1490,256 @@ def delete_module(args):
         
     except Exception as e:
         print(f"Error deleting module: {e}")
+        return 1
+    
+    return 0
+
+
+def display_wiki(args):
+    """Display a wiki page's information by its title"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find wiki page by title
+    try:
+        wiki_pages = generator.df[(generator.df["type"] == "wiki_page") & (generator.df["title"] == args.title)]
+        if wiki_pages.empty:
+            print(f"Error: Wiki page '{args.title}' not found in cartridge")
+            print("Available wiki pages:")
+            all_wiki_pages = generator.df[generator.df["type"] == "wiki_page"]["title"].tolist()
+            if all_wiki_pages:
+                for page in all_wiki_pages:
+                    print(f"  - {page}")
+            else:
+                print("  (no wiki pages found)")
+            return 1
+        
+        wiki_page_id = wiki_pages.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding wiki page: {e}")
+        return 1
+    
+    # Display wiki page
+    try:
+        generator.display_wiki(wiki_page_id)
+    except Exception as e:
+        print(f"Error displaying wiki page: {e}")
+        return 1
+    
+    return 0
+
+
+def display_assignment(args):
+    """Display an assignment's information by its title"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find assignment by title
+    try:
+        assignment_settings = generator.df[
+            (generator.df["type"] == "assignment_settings") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if assignment_settings.empty:
+            print(f"Error: Assignment '{args.title}' not found in cartridge")
+            print("Available assignments:")
+            all_assignments = generator.df[
+                generator.df["type"] == "assignment_settings"
+            ]["title"].tolist()
+            if all_assignments:
+                for assignment in all_assignments:
+                    print(f"  - {assignment}")
+            else:
+                print("  (no assignments found)")
+            return 1
+        
+        assignment_id = assignment_settings.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding assignment: {e}")
+        return 1
+    
+    # Display assignment
+    try:
+        generator.display_assignment(assignment_id)
+    except Exception as e:
+        print(f"Error displaying assignment: {e}")
+        return 1
+    
+    return 0
+
+
+def display_quiz(args):
+    """Display a quiz's information by its title"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find quiz by title - quizzes use type "assessment_meta"
+    try:
+        quiz_assessments = generator.df[
+            (generator.df["type"] == "assessment_meta") & 
+            (generator.df["title"] == args.title)
+        ]
+        
+        if quiz_assessments.empty:
+            print(f"Error: Quiz '{args.title}' not found in cartridge")
+            print("Available quizzes:")
+            all_quizzes = generator.df[
+                generator.df["type"] == "assessment_meta"
+            ]["title"].tolist()
+            if all_quizzes:
+                for quiz in all_quizzes:
+                    print(f"  - {quiz}")
+            else:
+                print("  (no quizzes found)")
+            return 1
+        
+        quiz_id = quiz_assessments.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding quiz: {e}")
+        return 1
+    
+    # Display quiz
+    try:
+        generator.display_quiz(quiz_id)
+    except Exception as e:
+        print(f"Error displaying quiz: {e}")
+        return 1
+    
+    return 0
+
+
+def display_discussion(args):
+    """Display a discussion's information by its title"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find discussion by title - discussions use module items with Discussion content type
+    try:
+        discussion_items = generator.df[
+            (generator.df["type"] == "module_item") & 
+            (generator.df["title"] == args.title) &
+            (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+        ]
+        
+        if discussion_items.empty:
+            print(f"Error: Discussion '{args.title}' not found in cartridge")
+            print("Available discussions:")
+            all_discussions = generator.df[
+                (generator.df["type"] == "module_item") & 
+                (generator.df["content_type"].isin(["DiscussionTopic", "Discussion"]))
+            ]["title"].tolist()
+            if all_discussions:
+                for discussion in all_discussions:
+                    print(f"  - {discussion}")
+            else:
+                print("  (no discussions found)")
+            return 1
+        
+        # Get the identifierref from the module item to find the actual discussion resource
+        discussion_item = discussion_items.iloc[0]
+        discussion_id = discussion_item["identifierref"]
+        
+    except Exception as e:
+        print(f"Error finding discussion: {e}")
+        return 1
+    
+    # Display discussion
+    try:
+        generator.display_discussion(discussion_id)
+    except Exception as e:
+        print(f"Error displaying discussion: {e}")
+        return 1
+    
+    return 0
+
+
+def display_file(args):
+    """Display a file's information by its filename"""
+    cartridge_path = Path(args.cartridge_name)
+    
+    if not cartridge_path.exists():
+        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        return 1
+    
+    # Load existing cartridge
+    generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
+    if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
+        print("Failed to load existing cartridge")
+        return 1
+    
+    # Find file by filename - files use type "resource" and href contains web_resources/filename
+    try:
+        file_resources = generator.df[
+            (generator.df["type"] == "resource") & 
+            (generator.df["href"].str.contains(f"web_resources/{args.filename}", na=False))
+        ]
+        
+        if file_resources.empty:
+            print(f"Error: File '{args.filename}' not found in cartridge")
+            print("Available files:")
+            all_files = generator.df[
+                (generator.df["type"] == "resource") & 
+                (generator.df["href"].str.contains("web_resources/", na=False))
+            ]["href"].tolist()
+            if all_files:
+                for file_href in all_files:
+                    filename = file_href.split("/")[-1] if "/" in file_href else file_href
+                    print(f"  - {filename}")
+            else:
+                print("  (no files found)")
+            return 1
+        
+        file_id = file_resources.iloc[0]["identifier"]
+        
+    except Exception as e:
+        print(f"Error finding file: {e}")
+        return 1
+    
+    # Display file
+    try:
+        generator.display_file(file_id)
+    except Exception as e:
+        print(f"Error displaying file: {e}")
         return 1
     
     return 0
@@ -1685,6 +1935,31 @@ def main():
     delete_module_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
     delete_module_parser.add_argument('--title', required=True, help='Module title to delete')
     
+    # Display-wiki command
+    display_wiki_parser = subparsers.add_parser('display-wiki', help='Display a wiki page\'s information by title')
+    display_wiki_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    display_wiki_parser.add_argument('--title', required=True, help='Wiki page title to display')
+    
+    # Display-assignment command
+    display_assignment_parser = subparsers.add_parser('display-assignment', help='Display an assignment\'s information by title')
+    display_assignment_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    display_assignment_parser.add_argument('--title', required=True, help='Assignment title to display')
+    
+    # Display-quiz command
+    display_quiz_parser = subparsers.add_parser('display-quiz', help='Display a quiz\'s information by title')
+    display_quiz_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    display_quiz_parser.add_argument('--title', required=True, help='Quiz title to display')
+    
+    # Display-discussion command
+    display_discussion_parser = subparsers.add_parser('display-discussion', help='Display a discussion\'s information by title')
+    display_discussion_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    display_discussion_parser.add_argument('--title', required=True, help='Discussion title to display')
+    
+    # Display-file command
+    display_file_parser = subparsers.add_parser('display-file', help='Display a file\'s information by filename')
+    display_file_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    display_file_parser.add_argument('--filename', required=True, help='Filename to display')
+    
     # Package command
     package_parser = subparsers.add_parser('package', help='Package cartridge into ZIP file')
     package_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
@@ -1746,6 +2021,16 @@ def main():
         return delete_file(args)
     elif args.command == 'delete-module':
         return delete_module(args)
+    elif args.command == 'display-wiki':
+        return display_wiki(args)
+    elif args.command == 'display-assignment':
+        return display_assignment(args)
+    elif args.command == 'display-quiz':
+        return display_quiz(args)
+    elif args.command == 'display-discussion':
+        return display_discussion(args)
+    elif args.command == 'display-file':
+        return display_file(args)
     elif args.command == 'package':
         return package_cartridge(args)
     else:

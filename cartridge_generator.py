@@ -41,15 +41,17 @@ import random
 from cartridge_replicator import scan_cartridge
 from _cartridge_deletion_mixin import CartridgeDeletionMixin
 from _cartridge_update_mixin import CartridgeUpdateMixin
+from _cartridge_display_mixin import CartridgeDisplayMixin
 from _cartridge_add_mixin import CartridgeAddMixin
 from _cartridge_standalone_add_mixin import CartridgeStandaloneAddMixin
 from _cartridge_copy_mixin import CartridgeCopyMixin
 from _cartridge_hydrator_mixin import CartridgeHydratorMixin
 
-class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, CartridgeAddMixin, CartridgeStandaloneAddMixin, CartridgeCopyMixin, CartridgeHydratorMixin):
-    def __init__(self, course_title="Generated Course", course_code="GEN101"):
+class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, CartridgeDisplayMixin, CartridgeAddMixin, CartridgeStandaloneAddMixin, CartridgeCopyMixin, CartridgeHydratorMixin):
+    def __init__(self, course_title="Generated Course", course_code="GEN101", verbose=True):
         self.course_title = course_title
         self.course_code = course_code
+        self.verbose = verbose
         
         # Generate main identifiers
         self.course_id = f"g{uuid.uuid4().hex}"
@@ -92,7 +94,8 @@ class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, Cartridge
                     keep='last'
                 ).reset_index(drop=True)
             
-            print(f"Cartridge state updated. Found {len(self.current_df)} components.")
+            if getattr(self, 'verbose', True):
+                print(f"Cartridge state updated. Found {len(self.current_df)} components.")
         
     def create_base_cartridge(self, output_dir):
         """Create the base cartridge structure with core files"""
