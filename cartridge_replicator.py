@@ -1,23 +1,6 @@
 #how to run: /home/q/Desktop/test_cartridge/.venv/bin/python cartridge_replicator.py  input_cartridge produced_cartridge --verify
 
 """
-Canvas Common Cartridge Replicator
-Scans an existing cartridge and produces an identical match
-
-USAGE EXAMPLES:
-    # Basic replication - scan input_cartridge and create exact copy in output_cartridge
-    python cartridge_replicator.py input_cartridge output_cartridge
-    
-    # Replicate with verification (commented out in main)
-    python cartridge_replicator.py input_cartridge produced_cartridge --verify
-    
-    # Real-world example - backup/copy existing cartridge
-    python cartridge_replicator.py my_course_export backup_course_copy
-    
-    # Replicate from Canvas export to clean directory
-    python cartridge_replicator.py canvas_export_folder clean_cartridge_copy
-
-WHAT IT DOES:
     - Scans input cartridge and extracts ALL 42+ component types into pandas DataFrame
     - Preserves exact XML formatting, UUIDs, and file structure
     - Handles complex content: assignments, quizzes, announcements, wiki pages, files
