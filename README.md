@@ -1,8 +1,15 @@
 # 🧾 Cartridge CLI Example Commands
 
-This README provides example commands for using `cartridge_cli.py` to create and manage an IMS Common Cartridge package. Commands are grouped by action type for clarity.
+This README provides example commands for using `cartridge_cli.py` to create new or edit existing unzipped IMS Common Cartridge courses. Commands are grouped by action type for clarity.
 
 ---
+
+## Install
+
+**Examples:**
+```bash
+python -m venv .venv && pip install pandas
+```
 
 ## 🧱 Create Cartridge
 
