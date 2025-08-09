@@ -279,35 +279,38 @@ def add_file(args):
 
 def list_cartridge(args):
     """List contents of an existing cartridge"""
+    import json
+    import xml.etree.ElementTree as ET
+    
     cartridge_path = Path(args.cartridge_name)
     
     if not cartridge_path.exists():
-        print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
+        if hasattr(args, 'json') and args.json:
+            print(json.dumps({"error": f"Cartridge '{args.cartridge_name}' does not exist"}))
+        else:
+            print(f"Error: Cartridge '{args.cartridge_name}' does not exist")
         return 1
     
     # Load existing cartridge
     generator = CartridgeGenerator("temp", "temp", verbose=False)  # Will be overridden during hydration
     if not generator.hydrate_from_existing_cartridge(args.cartridge_name):
-        print("Failed to load existing cartridge")
+        if hasattr(args, 'json') and args.json:
+            print(json.dumps({"error": "Failed to load existing cartridge"}))
+        else:
+            print("Failed to load existing cartridge")
         return 1
     
     # Get summary
     summary = generator.get_hydration_summary()
     
-    print(f"Cartridge: {args.cartridge_name}")
-    print(f"  Course: {summary['course_title']} ({summary['course_code']})")
-    print(f"  Total components: {summary['total_components']}")
-    print()
-    
-    # List modules and their contents
+    # Build module structure for both JSON and text output
+    modules_data = []
     modules = generator.df[generator.df["type"] == "module"]
+    
     if not modules.empty:
-        print("Modules:")
-        
         # Parse organization structure from manifest to get proper module-item hierarchy
         manifest_row = generator.df[generator.df["type"] == "manifest"]
         if not manifest_row.empty:
-            import xml.etree.ElementTree as ET
             try:
                 manifest_xml = manifest_row.iloc[0]['xml_content']
                 root = ET.fromstring(manifest_xml)
@@ -338,11 +341,8 @@ def list_cartridge(args):
                             
                             module_items_map[module_id] = child_items
                     
-                    # Display modules with their proper items
+                    # Build modules data structure
                     for _, module in modules.iterrows():
-                        print(f"  📁 {module['title']} (ID: {module['identifier']})")
-                        
-                        # Get items for this specific module
                         module_items = module_items_map.get(module['identifier'], [])
                         
                         # Remove duplicates while preserving order
@@ -354,6 +354,8 @@ def list_cartridge(args):
                                 seen_items.add(item_key)
                                 unique_items.append(item)
                         
+                        # Process items and determine content types
+                        items_data = []
                         for item in unique_items:
                             if isinstance(item, dict):
                                 item_title = item['title']
@@ -397,40 +399,83 @@ def list_cartridge(args):
                                             content_type = "Quiz"
                                         elif content_type == "Attachment":
                                             content_type = "File"
+                                
+                                items_data.append({
+                                    'title': item_title,
+                                    'identifierref': identifierref,
+                                    'content_type': content_type
+                                })
                             else:
                                 # Fallback for old format
-                                item_title = item
-                                content_type = "WikiPage"
-                            
-                            icons = {
-                                "WikiPage": "📄",
-                                "Assignment": "📝", 
-                                "Quiz": "❓",
-                                "DiscussionTopic": "💬",
-                                "Discussion": "💬",
-                                "File": "📎"
-                            }
-                            icon = icons.get(content_type, "❓")
-                            print(f"    {icon} {item_title} ({content_type})")
+                                items_data.append({
+                                    'title': item,
+                                    'identifierref': None,
+                                    'content_type': "WikiPage"
+                                })
                         
-                        if not unique_items:
-                            print("    (no items)")
+                        modules_data.append({
+                            'id': module['identifier'],
+                            'title': module['title'],
+                            'items': items_data
+                        })
                             
             except ET.ParseError as e:
-                print(f"Error parsing manifest XML: {e}")
                 # Fallback to simple module listing
                 for _, module in modules.iterrows():
-                    print(f"  📁 {module['title']} (ID: {module['identifier']})")
+                    modules_data.append({
+                        'id': module['identifier'],
+                        'title': module['title'],
+                        'items': []
+                    })
     
-    # List component types
-    print("\nComponent breakdown:")
-    for comp_type, count in summary['component_types'].items():
-        print(f"  {comp_type}: {count}")
-    
-    # Export DataFrame to HTML for inspection
-    html_file = "table_inspect.html"
-    generator.current_df.to_html(html_file, escape=False)
-    print(f"\n✓ DataFrame exported to {html_file} for inspection")
+    # Output based on format requested
+    if hasattr(args, 'json') and args.json:
+        # JSON output only
+        output_data = {
+            'cartridge_name': args.cartridge_name,
+            'course_title': summary['course_title'],
+            'course_code': summary['course_code'],
+            'total_components': summary['total_components'],
+            'modules': modules_data,
+            'component_types': {k: int(v) for k, v in summary['component_types'].items()}
+        }
+        print(json.dumps(output_data, indent=2))
+    else:
+        # Text output (original format)
+        print(f"Cartridge: {args.cartridge_name}")
+        print(f"  Course: {summary['course_title']} ({summary['course_code']})")
+        print(f"  Total components: {summary['total_components']}")
+        print()
+        
+        if modules_data:
+            print("Modules:")
+            for module in modules_data:
+                print(f"  📁 {module['title']} (ID: {module['id']})")
+                
+                if module['items']:
+                    for item in module['items']:
+                        icons = {
+                            "WikiPage": "📄",
+                            "Assignment": "📝", 
+                            "Quiz": "❓",
+                            "DiscussionTopic": "💬",
+                            "Discussion": "💬",
+                            "File": "📎"
+                        }
+                        icon = icons.get(item['content_type'], "❓")
+                        print(f"    {icon} {item['title']} ({item['content_type']})")
+                else:
+                    print("    (no items)")
+        
+        # List component types
+        print("\nComponent breakdown:")
+        for comp_type, count in summary['component_types'].items():
+            print(f"  {comp_type}: {count}")
+        
+        # Export DataFrame to HTML for inspection
+        html_file = "table_inspect.html"
+        generator.current_df.to_html(html_file, escape=False)
+        print(f"\n✓ DataFrame exported to {html_file} for inspection")
     
     return 0
 
@@ -1822,6 +1867,7 @@ def main():
     # List command
     list_parser = subparsers.add_parser('list', help='List contents of a cartridge')
     list_parser.add_argument('cartridge_name', help='Name of the cartridge directory')
+    list_parser.add_argument('--json', action='store_true', help='Output only JSON format with no other text')
     
     # Update-wiki command
     update_wiki_parser = subparsers.add_parser('update-wiki', help='Update a wiki page in a cartridge')
