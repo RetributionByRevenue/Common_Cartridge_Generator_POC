@@ -9,14 +9,14 @@ from datetime import datetime
 import filecmp
 import shutil
 import random
-from cartridge_replicator import scan_cartridge
-from _cartridge_deletion_mixin import CartridgeDeletionMixin
-from _cartridge_update_mixin import CartridgeUpdateMixin
-from _cartridge_display_mixin import CartridgeDisplayMixin
-from _cartridge_add_mixin import CartridgeAddMixin
-from _cartridge_standalone_add_mixin import CartridgeStandaloneAddMixin
-from _cartridge_copy_mixin import CartridgeCopyMixin
-from _cartridge_hydrator_mixin import CartridgeHydratorMixin
+from .replicator import scan_cartridge
+from ._cartridge_deletion_mixin import CartridgeDeletionMixin
+from ._cartridge_update_mixin import CartridgeUpdateMixin
+from ._cartridge_display_mixin import CartridgeDisplayMixin
+from ._cartridge_add_mixin import CartridgeAddMixin
+from ._cartridge_standalone_add_mixin import CartridgeStandaloneAddMixin
+from ._cartridge_copy_mixin import CartridgeCopyMixin
+from ._cartridge_hydrator_mixin import CartridgeHydratorMixin
 
 class CartridgeGenerator(CartridgeDeletionMixin, CartridgeUpdateMixin, CartridgeDisplayMixin, CartridgeAddMixin, CartridgeStandaloneAddMixin, CartridgeCopyMixin, CartridgeHydratorMixin):
     def __init__(self, course_title="Generated Course", course_code="GEN101", verbose=True):

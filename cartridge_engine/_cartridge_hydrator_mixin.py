@@ -7,7 +7,7 @@ Provides functionality to hydrate a CartridgeGenerator from an existing cartridg
 from pathlib import Path
 import pandas as pd
 import uuid
-from cartridge_replicator import scan_cartridge
+from .replicator import scan_cartridge
 
 
 class CartridgeHydratorMixin:

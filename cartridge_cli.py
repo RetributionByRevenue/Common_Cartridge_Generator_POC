@@ -7,7 +7,7 @@ import argparse
 import sys
 from pathlib import Path
 import shutil
-from cartridge_generator import CartridgeGenerator
+from cartridge_engine import CartridgeGenerator
 
 
 def create_cartridge(args):
