@@ -473,8 +473,12 @@ def list_cartridge(args):
             print(f"  {comp_type}: {count}")
         
         # Export DataFrame to HTML for inspection
-        html_file = "table_inspect.html"
-        generator.current_df.to_html(html_file, escape=False)
+        html_file = f"{args.cartridge_name}/table_inspect.html"
+        temp_display_df = generator.current_df.copy()
+        for index, row in temp_display_df.iterrows():
+            if len(str(row['xml_content'])) > 2000:
+                temp_display_df.at[index, 'xml_content'] = str(row['xml_content'])[:2000] + " ... cell length reached limit"
+        temp_display_df.to_html(html_file, escape=False)
         print(f"\n✓ DataFrame exported to {html_file} for inspection")
     
     return 0
